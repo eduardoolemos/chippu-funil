@@ -1148,7 +1148,7 @@ function goLoading() {
     if(p<1)requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
-  setTimeout(()=>{ applyDiag(); go(6); setTimeout(enviarDiagnosticoComoImagem, 800); }, 3900);
+  setTimeout(()=>{ applyDiag(); go(6); }, 3900);
 }
 
 function buildDiag() {
@@ -1194,7 +1194,7 @@ function handleDownload() {
 
 // ── EMAIL ──────────────────────────────
 // ── WEBHOOK DIAGNÓSTICO (imagem) ───────
-const WEBHOOK_DIAG_URL = 'https://webhook.trafegoedu.com.br/webhook/e9e1a5d0-373c-4259-8e61-0ac3c02846e6';
+const WEBHOOK_DIAG_URL = 'https://webhook.trafegoedu.com.br/webhook/151cb382-a955-4ecf-9d7c-e6a8e0e52778';
 
 function enviarDiagnosticoComoImagem() {
   const tela = document.getElementById('s6');
@@ -1210,25 +1210,9 @@ function enviarDiagnosticoComoImagem() {
     const utms = getUrlParams();
 
     const payload = {
-      evento:         'diagnostico_visualizado',
-      nome:           ST.name    || '',
-      email:          ST.email   || '',
-      telefone:       ST.phone   || '',
-      q1_assinaturas: ST.q1      || '',
-      q2_controle:    ST.q2      || '',
-      q3_valor_gasto: ST.q3      || 0,
-      diag_real:      diag.real  || '',
-      diag_waste:     diag.waste || '',
-      diag_titulo:    diag.vTitle || '',
-      data_hora:      new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-      utm_source:     utms.utm_source,
-      utm_medium:     utms.utm_medium,
-      utm_campaign:   utms.utm_campaign,
-      utm_content:    utms.utm_content,
-      utm_term:       utms.utm_term,
-      fbclid:         utms.fbclid,
-      pagina:         window.location.href,
-      screenshot:     imagemBase64,
+      email:      ST.email || '',
+      telefone:   ST.phone || '',
+      screenshot: imagemBase64,
     };
 
     fetch(WEBHOOK_DIAG_URL, {
@@ -1309,6 +1293,9 @@ function submitLead(skip=false) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }).catch(err => console.warn('Webhook erro:', err));
+
+  // Dispara screenshot com email e telefone já preenchidos
+  enviarDiagnosticoComoImagem();
 
   console.log('LEAD →', payload);
   go(9);
