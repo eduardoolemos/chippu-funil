@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Chippu — Diagnóstico Gratuito</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=Inconsolata:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #080d10;
+  --bg2:      #0b1215;
+  --surface:  #0f1820;
+  --surface2: #132028;
+  --border:   #1e3040;
+  --border2:  #254050;
+  --teal:     #00c9b1;
+  --teal2:    #00e8cc;
+  --teal-dim: rgba(0,201,177,0.10);
+  --teal-mid: rgba(0,201,177,0.20);
+  --red:      #ff4a4a;
+  --red-dim:  rgba(255,74,74,0.10);
+  --gold:     #f5c842;
+  --gold-dim: rgba(245,200,66,0.10);
+  --text:     #b8cdd4;
+  --text2:    #567080;
+  --text3:    #2e4250;
+  --white:    #eef6f8;
+  --font-head: 'Barlow Condensed', sans-serif;
+  --font-body: 'Barlow', sans-serif;
+  --font-mono: 'Inconsolata', monospace;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html, body {
+  height:100%; background:var(--bg);
+  color:var(--text); overflow:hidden;
+  font-family: var(--font-body);
+  font-size:15px;
+}
+
+/* ── FUNNEL SHELL ── */
+.funnel {
+  height:100vh; width:100%;
+  max-width:480px; margin:0 auto;
+  position:relative; overflow:hidden;
+  display:flex; flex-direction:column;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  height:56px; flex-shrink:0;
+  background: var(--bg2);
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center;
+  padding:0 22px; gap:12px;
+  z-index:20; position:relative;
+}
+
+.topbar-logo svg { height:22px; width:auto; }
+
+.topbar-badge {
+  margin-left:auto;
+  display:flex; align-items:center; gap:6px;
+  padding:4px 10px;
+  background:var(--teal-dim);
+  border:1px solid rgba(0,201,177,0.25);
+  border-radius:20px;
+  font-family:var(--font-mono);
+  font-size:10px; color:var(--teal);
+  text-transform:uppercase; letter-spacing:0.08em;
+}
+
+.topbar-badge::before {
+  content:'';
+  width:5px; height:5px;
+  background:var(--teal);
+  border-radius:50%;
+  animation: blink 1.6s ease infinite;
+}
+
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+/* ── PROGRESS ── */
+.progress-bar {
+  height:3px; flex-shrink:0;
+  background:var(--border); position:relative;
+}
+
+.progress-fill {
+  height:100%;
+  background:linear-gradient(90deg,var(--teal),var(--teal2));
+  border-radius:0 2px 2px 0;
+  transition:width 0.5s cubic-bezier(0.4,0,0.2,1);
+  box-shadow:0 0 14px rgba(0,201,177,0.5);
+}
+
+/* ── SCREENS ── */
+.screens-wrap {
+  flex:1; position:relative; overflow:hidden;
+}
+
+.screen {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  opacity:0; pointer-events:none;
+  transform:translateX(48px);
+  transition:opacity .35s cubic-bezier(0.4,0,0.2,1),
+              transform .35s cubic-bezier(0.4,0,0.2,1);
+  overflow-y:auto; overflow-x:hidden;
+}
+
+.screen.active { opacity:1; pointer-events:all; transform:translateX(0); }
+.screen.exit   { opacity:0; transform:translateX(-48px); }
+
+.screen-inner {
+  flex:1; display:flex; flex-direction:column;
+  padding:28px 22px 32px;
+}
+
+/* ── STEP DOTS ── */
+.step-row {
+  display:flex; align-items:center; gap:6px;
+  margin-bottom:26px;
+}
+.sdot {
+  width:6px; height:6px; border-radius:50%;
+  background:var(--border2); transition:all 0.3s;
+}
+.sdot.on  { background:var(--teal); width:20px; border-radius:3px; }
+.sdot.done{ background:rgba(0,201,177,0.35); }
+.slabel {
+  font-family:var(--font-mono); font-size:11px;
+  color:var(--text3); text-transform:uppercase;
+  letter-spacing:0.1em; margin-left:auto;
+}
+
+/* ── EYEBROW ── */
+.eyebrow {
+  font-family:var(--font-mono); font-size:11px;
+  text-transform:uppercase; letter-spacing:0.14em;
+  color:var(--teal); margin-bottom:14px;
+  display:flex; align-items:center; gap:8px;
+}
+.eyebrow::before {
+  content:'';
+  width:20px; height:2px;
+  background:var(--teal); border-radius:1px;
+}
+
+/* ── HEADLINE ── */
+.headline {
+  font-family:var(--font-head); font-weight:900;
+  font-size:clamp(32px,8vw,42px);
+  line-height:1.0; color:var(--white);
+  text-transform:uppercase;
+  letter-spacing:-0.01em;
+  margin-bottom:12px;
+}
+
+.headline .teal { color:var(--teal); }
+.headline .gold { color:var(--gold); }
+
+.sub {
+  font-size:15px; font-weight:400;
+  color:var(--text); line-height:1.55;
+  margin-bottom:24px;
+}
+
+.sub strong { color:var(--white); font-weight:600; }
+
+/* ── STREAMING CHIPS ── */
+.stream-row {
+  display:flex; gap:7px; flex-wrap:wrap;
+  margin-bottom:24px;
+}
+
+.s-chip {
+  display:flex; align-items:center; gap:6px;
+  padding:5px 11px;
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:20px;
+  font-family:var(--font-mono); font-size:11px;
+  color:var(--text2);
+}
+.s-dot { width:7px; height:7px; border-radius:50%; }
+
+/* ── STAT CARDS (brand-style with top border) ── */
+.stat-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:8px; margin-bottom:28px;
+}
+
+.stat-card {
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:10px;
+  padding:14px 14px 12px;
+  position:relative; overflow:hidden;
+}
+
+.stat-card::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0;
+  height:3px; border-radius:3px 3px 0 0;
+}
+.stat-card.c-teal::before { background:var(--teal); }
+.stat-card.c-red::before  { background:var(--red); }
+.stat-card.c-gold::before { background:var(--gold); }
+.stat-card.c-pur::before  { background:#9b7fd4; }
+
+.stat-n {
+  font-family:var(--font-head); font-weight:900;
+  font-size:30px; line-height:1; margin-bottom:4px;
+  color:var(--white);
+}
+.stat-card.c-teal .stat-n { color:var(--teal); }
+.stat-card.c-red  .stat-n { color:var(--red); }
+.stat-card.c-gold .stat-n { color:var(--gold); }
+
+.stat-d { font-size:12px; color:var(--text2); line-height:1.35; }
+
+/* ── PRIMARY BUTTON ── */
+.btn-p {
+  width:100%; padding:17px 22px;
+  background:var(--teal); border:none;
+  border-radius:12px;
+  color:#020e0c;
+  font-family:var(--font-head); font-weight:800;
+  font-size:18px; text-transform:uppercase;
+  letter-spacing:0.04em;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  transition:all 0.2s;
+  box-shadow:0 4px 28px rgba(0,201,177,0.3);
+  flex-shrink:0;
+}
+.btn-p:hover { background:var(--teal2); transform:translateY(-1px); box-shadow:0 8px 36px rgba(0,201,177,0.4); }
+.btn-p:active { transform:translateY(0); }
+.btn-p.dis { opacity:0.3; pointer-events:none; }
+
+/* ── DOWNLOAD BUTTON (brand pill style from screenshot) ── */
+.btn-dl {
+  width:100%; padding:16px 20px;
+  background:#0b1820;
+  border:1.5px solid var(--teal);
+  border-radius:14px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:14px;
+  transition:all 0.2s;
+  flex-shrink:0;
+}
+.btn-dl:hover { background:var(--teal-dim); transform:translateY(-1px); }
+.btn-dl:active { transform:translateY(0); }
+
+.btn-dl-pre {
+  font-family:var(--font-body); font-size:15px;
+  font-weight:500; color:var(--white);
+}
+.btn-dl-logo svg { height:20px; width:auto; }
+
+/* ── GHOST BUTTON ── */
+.btn-g {
+  width:100%; padding:13px;
+  background:transparent;
+  border:1px solid var(--border);
+  border-radius:10px;
+  color:var(--text2); font-size:14px;
+  cursor:pointer; margin-top:9px;
+  transition:all 0.2s; font-family:var(--font-body);
+}
+.btn-g:hover { border-color:var(--border2); color:var(--text); }
+
+/* ── OPTION CARDS ── */
+.options { display:flex; flex-direction:column; gap:9px; flex:1; }
+
+.opt {
+  padding:15px 16px;
+  background:var(--surface);
+  border:1.5px solid var(--border2);
+  border-radius:12px; cursor:pointer;
+  transition:all 0.18s cubic-bezier(0.4,0,0.2,1);
+  display:flex; align-items:center; gap:13px;
+}
+.opt:hover { border-color:rgba(0,201,177,0.4); transform:translateX(3px); }
+.opt.sel   { border-color:var(--teal); background:var(--teal-dim); transform:translateX(0); }
+
+.opt-ico {
+  width:40px; height:40px; border-radius:10px;
+  background:var(--surface2);
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; flex-shrink:0; transition:all 0.2s;
+}
+.opt.sel .opt-ico { background:rgba(0,201,177,0.15); }
+
+.opt-txt { flex:1; }
+.opt-lbl {
+  font-family:var(--font-head); font-weight:700;
+  font-size:16px; color:var(--white); margin-bottom:1px;
+  text-transform:uppercase; letter-spacing:0.01em;
+}
+.opt-sub { font-size:12px; color:var(--text2); }
+
+.opt-chk {
+  width:22px; height:22px;
+  border:1.5px solid var(--border2);
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; transition:all 0.2s;
+  font-size:12px; font-weight:700;
+}
+.opt.sel .opt-chk { background:var(--teal); border-color:var(--teal); color:#020e0c; }
+
+/* ── VALUE SLIDER (Q3) ── */
+.val-wrap {
+  background:var(--surface);
+  border:1.5px solid var(--border);
+  border-radius:14px; padding:20px;
+  margin-bottom:14px; transition:border-color 0.2s;
+}
+.val-wrap:focus-within { border-color:var(--teal); }
+.val-lbl { font-family:var(--font-mono); font-size:10px; text-transform:uppercase; color:var(--text3); letter-spacing:0.08em; margin-bottom:10px; }
+.val-row { display:flex; align-items:center; gap:8px; }
+.val-curr { font-family:var(--font-head); font-weight:900; font-size:28px; color:var(--teal); }
+.val-input {
+  background:transparent; border:none; outline:none;
+  font-family:var(--font-head); font-weight:900;
+  font-size:42px; color:var(--white); width:100%;
+  caret-color:var(--teal);
+}
+.val-input::placeholder { color:var(--text3); }
+
+.range {
+  -webkit-appearance:none; width:100%; height:3px;
+  background:linear-gradient(90deg,var(--teal) var(--pct,12%),var(--border) var(--pct,12%));
+  border-radius:2px; outline:none; cursor:pointer;
+  margin:12px 0 5px;
+}
+.range::-webkit-slider-thumb {
+  -webkit-appearance:none; width:20px; height:20px;
+  border-radius:50%; background:var(--teal); cursor:pointer;
+  box-shadow:0 0 12px rgba(0,201,177,0.5);
+  transition:transform 0.15s;
+}
+.range::-webkit-slider-thumb:active { transform:scale(1.3); }
+.range-lbls {
+  display:flex; justify-content:space-between;
+  font-family:var(--font-mono); font-size:10px; color:var(--text3);
+}
+
+/* ── SINGLE FIELD SCREEN ── */
+.fld-wrap { flex:1; display:flex; flex-direction:column; justify-content:center; }
+.fld-ctx {
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:12px; padding:16px;
+  margin-bottom:24px;
+  display:flex; align-items:flex-start; gap:12px;
+}
+.fld-ctx.teal { background:var(--teal-dim); border-color:rgba(0,201,177,0.2); }
+.fld-ctx-ico { font-size:22px; flex-shrink:0; }
+.fld-ctx-txt { font-size:13px; color:var(--text2); line-height:1.5; }
+.fld-ctx-txt strong { color:var(--white); }
+
+.fld-title {
+  font-family:var(--font-head); font-weight:900;
+  font-size:clamp(28px,7vw,36px);
+  text-transform:uppercase; color:var(--white);
+  line-height:1.05; margin-bottom:8px;
+}
+.fld-title .teal { color:var(--teal); }
+
+.fld-sub { font-size:14px; color:var(--text2); line-height:1.5; margin-bottom:28px; }
+
+.form-lbl {
+  font-family:var(--font-mono); font-size:10px;
+  text-transform:uppercase; letter-spacing:0.1em;
+  color:var(--text3); margin-bottom:8px; display:block;
+}
+.form-inp {
+  width:100%;
+  background:var(--surface);
+  border:1.5px solid var(--border2);
+  border-radius:12px; padding:16px 18px;
+  font-family:var(--font-body); font-size:16px;
+  color:var(--white); outline:none;
+  transition:border-color 0.2s;
+  margin-bottom:5px;
+}
+.form-inp::placeholder { color:var(--text3); }
+.form-inp:focus { border-color:var(--teal); }
+
+.fld-hint { font-size:12px; color:var(--text3); margin-bottom:22px; }
+.fld-hint .tl { color:var(--teal); }
+
+.priv-note {
+  display:flex; align-items:flex-start; gap:8px;
+  padding:11px 14px;
+  background:var(--surface2); border-radius:8px;
+  margin-bottom:20px;
+}
+.priv-ico { font-size:13px; flex-shrink:0; margin-top:2px; }
+.priv-txt { font-size:11px; color:var(--text3); line-height:1.4; }
+
+/* ── LOADING ── */
+.load-wrap {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; padding:24px;
+}
+.load-eye {
+  width:80px; height:80px; border-radius:50%;
+  background:var(--teal-dim);
+  border:2px solid rgba(0,201,177,0.3);
+  display:flex; align-items:center; justify-content:center;
+  font-size:34px; margin-bottom:24px; position:relative;
+  animation:breathe 2s ease infinite;
+}
+.load-eye::after {
+  content:''; position:absolute; inset:-9px;
+  border-radius:50%; border:1px solid rgba(0,201,177,0.12);
+  animation:ripple 2s ease infinite;
+}
+@keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+@keyframes ripple  { 0%{transform:scale(1);opacity:1} 100%{transform:scale(1.4);opacity:0} }
+
+.load-title {
+  font-family:var(--font-head); font-weight:800;
+  font-size:22px; text-transform:uppercase;
+  color:var(--white); text-align:center; margin-bottom:8px;
+}
+.load-sub { font-size:13px; color:var(--text2); text-align:center; margin-bottom:32px; line-height:1.5; }
+
+.load-steps { width:100%; display:flex; flex-direction:column; gap:9px; margin-bottom:32px; }
+.load-step {
+  display:flex; align-items:center; gap:11px;
+  padding:12px 15px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; transition:all 0.3s;
+}
+.load-step.done { border-color:rgba(0,201,177,0.25); background:var(--teal-dim); }
+.ls-ico {
+  width:28px; height:28px; border-radius:50%;
+  background:var(--surface2);
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; flex-shrink:0; transition:all 0.3s;
+}
+.load-step.done .ls-ico { background:var(--teal); }
+.ls-txt { font-size:13px; color:var(--text2); transition:color 0.3s; }
+.load-step.done .ls-txt { color:var(--teal); }
+
+.counter {
+  font-family:var(--font-head); font-weight:900;
+  font-size:56px; color:var(--white);
+  text-align:center; line-height:1;
+}
+.counter span { color:var(--teal); }
+
+/* ── DIAGNOSIS SCREEN ── */
+.diag-top {
+  border:1.5px solid rgba(255,74,74,0.3);
+  background:linear-gradient(135deg,rgba(255,74,74,0.08),transparent);
+  border-radius:14px; padding:20px;
+  margin-bottom:16px; text-align:center;
+  position:relative; overflow:hidden;
+}
+.diag-top::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:3px;
+  background:var(--red);
+}
+.diag-lbl {
+  font-family:var(--font-mono); font-size:11px;
+  text-transform:uppercase; color:var(--red);
+  letter-spacing:0.1em; margin-bottom:8px;
+}
+.diag-num {
+  font-family:var(--font-head); font-weight:900;
+  font-size:clamp(44px,12vw,58px);
+  color:var(--white); line-height:1; margin-bottom:4px;
+}
+.diag-num-sub { font-size:13px; color:var(--text2); }
+
+.verdict {
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-left:3px solid var(--red);
+  border-radius:0 10px 10px 0;
+  padding:14px; margin-bottom:16px;
+}
+.verdict-title {
+  font-family:var(--font-head); font-weight:700;
+  font-size:16px; text-transform:uppercase;
+  color:var(--white); margin-bottom:5px;
+}
+.verdict-txt { font-size:13px; color:var(--text2); line-height:1.55; }
+.verdict-txt strong { color:var(--white); }
+
+.metrics {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:8px; margin-bottom:18px;
+}
+.metric {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; padding:13px;
+}
+.m-lbl {
+  font-family:var(--font-mono); font-size:10px;
+  text-transform:uppercase; color:var(--text3);
+  letter-spacing:0.07em; margin-bottom:5px;
+}
+.m-val {
+  font-family:var(--font-head); font-weight:900;
+  font-size:22px; color:var(--white); margin-bottom:1px;
+}
+.m-val.red  { color:var(--red); }
+.m-val.teal { color:var(--teal); }
+.m-val.gold { color:var(--gold); }
+.m-sub { font-size:10px; color:var(--text3); }
+
+/* email promise strip */
+.email-strip {
+  display:flex; align-items:center; gap:11px;
+  padding:13px 15px;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  cursor:pointer; margin-top:10px;
+  transition:border-color 0.2s;
+}
+.email-strip:hover { border-color:rgba(0,201,177,0.3); }
+.email-strip-ico { font-size:18px; flex-shrink:0; }
+.email-strip-txt { flex:1; }
+.email-strip-main { font-size:13px; color:var(--white); font-weight:600; margin-bottom:1px; }
+.email-strip-sub  { font-size:11px; color:var(--text2); }
+.email-strip-arr  { font-size:16px; color:var(--text3); }
+
+/* ── WAVE DECORATION ── */
+.wave-wrap {
+  position:relative; flex-shrink:0;
+  height:48px; overflow:hidden; pointer-events:none;
+}
+.wave-wrap svg { position:absolute; bottom:0; width:100%; height:100%; }
+
+/* ── SUCCESS ── */
+.ok-wrap {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  text-align:center; padding:28px 22px;
+}
+.ok-ico {
+  width:80px; height:80px;
+  background:var(--teal-dim);
+  border:2px solid rgba(0,201,177,0.3);
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:36px; margin-bottom:22px;
+  animation:popIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes popIn { 0%{transform:scale(0);opacity:0} 100%{transform:scale(1);opacity:1} }
+
+.ok-title {
+  font-family:var(--font-head); font-weight:900;
+  font-size:32px; text-transform:uppercase;
+  color:var(--white); margin-bottom:10px;
+}
+.ok-sub  { font-size:14px; color:var(--text2); margin-bottom:28px; line-height:1.6; max-width:310px; }
+
+.ok-steps { width:100%; display:flex; flex-direction:column; gap:9px; margin-bottom:24px; }
+.ok-step {
+  display:flex; align-items:center; gap:12px;
+  padding:13px 15px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; text-align:left;
+}
+.ok-num {
+  width:24px; height:24px; background:var(--teal);
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-head); font-weight:800;
+  font-size:13px; color:#020e0c; flex-shrink:0;
+}
+.ok-txt { font-size:13px; color:var(--text); }
+
+.ok-diag-card {
+  background:var(--teal-dim);
+  border:1px solid rgba(0,201,177,0.2);
+  border-radius:14px; padding:18px;
+  width:100%; text-align:center; margin-bottom:20px;
+}
+.ok-diag-lbl { font-size:12px; color:var(--text2); margin-bottom:4px; }
+.ok-diag-num {
+  font-family:var(--font-head); font-weight:900;
+  font-size:34px; color:var(--teal); line-height:1;
+}
+.ok-diag-sub { font-size:12px; color:var(--text3); margin-top:3px; }
+
+/* ── TRUST ROW ── */
+.trust-row {
+  display:flex; align-items:center; justify-content:center;
+  gap:16px; flex-wrap:wrap;
+  margin:14px 0;
+}
+.trust-item {
+  display:flex; align-items:center; gap:5px;
+  font-size:11px; color:var(--text3);
+  font-family:var(--font-mono);
+}
+.trust-item::before { content:'✓'; color:var(--teal); font-size:11px; font-weight:700; }
+
+/* ── ANIMS ── */
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+.a1{animation:fadeUp .4s .04s both}
+.a2{animation:fadeUp .4s .12s both}
+.a3{animation:fadeUp .4s .20s both}
+.a4{animation:fadeUp .4s .28s both}
+.a5{animation:fadeUp .4s .36s both}
+.a6{animation:fadeUp .4s .44s both}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+@media(min-width:481px){
+  body{background:#030709}
+  .funnel{box-shadow:0 0 80px rgba(0,0,0,0.9);border-left:1px solid var(--border);border-right:1px solid var(--border)}
+}
+</style>
+</head>
+<body>
+<div class="funnel">
+
+  <!-- TOPBAR COM LOGO -->
+  <div class="topbar">
+    <!-- LOGO SVG inline -->
+    <svg width="86" height="28" viewBox="0 0 86 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="height:22px;width:auto">
+      <path d="M13.2392 7.63777C13.2392 7.64896 13.2392 7.65456 13.2539 7.65456C13.5443 7.95215 13.7073 8.35473 13.7073 8.77436C13.7073 9.19399 13.5443 9.59657 13.2539 9.89415C13.1118 10.0447 12.941 10.1639 12.7519 10.2444C12.5628 10.325 12.3596 10.3652 12.1546 10.3626C11.949 10.3653 11.7451 10.3244 11.5559 10.2424C11.3667 10.1605 11.1962 10.0393 11.0554 9.88668H11.0408C10.6167 9.44351 10.1078 9.09389 9.54557 8.85951C8.98333 8.62514 8.37979 8.51103 7.77244 8.52427C7.16431 8.51466 6.56065 8.63151 5.99837 8.8677C5.4361 9.10388 4.92702 9.45442 4.50227 9.89788C4.06462 10.3276 3.71842 10.8444 3.48519 11.4163C3.25197 11.9881 3.1367 12.6027 3.14657 13.2218C3.13773 13.8413 3.25344 14.4562 3.48659 15.0285C3.71974 15.6007 4.06539 16.1184 4.50227 16.5495C4.92587 16.995 5.43457 17.3474 5.997 17.5849C6.55943 17.8224 7.16366 17.9401 7.77244 17.9305C8.37764 17.9395 8.97832 17.823 9.53797 17.5882C10.0976 17.3533 10.6045 17.005 11.0279 16.5644L11.0591 16.5327C11.202 16.384 11.3733 16.2666 11.5623 16.1877C11.7513 16.1088 11.9541 16.0699 12.1583 16.0735C12.368 16.0708 12.576 16.1116 12.7697 16.1934C12.9634 16.2752 13.1388 16.3964 13.285 16.5495C13.4356 16.6954 13.5549 16.8716 13.6353 17.0669C13.7157 17.2623 13.7555 17.4724 13.7522 17.6842C13.755 17.897 13.715 18.1081 13.6346 18.3045C13.5543 18.501 13.4353 18.6786 13.285 18.8264L13.2539 18.8581C12.5427 19.6023 11.6895 20.1903 10.7468 20.5857C9.80404 20.9812 8.7918 21.1757 7.77244 21.1574C6.74961 21.1743 5.73424 20.9775 4.78897 20.5791C3.84369 20.1808 2.98857 19.5894 2.27636 18.8413C1.54145 18.1153 0.960381 17.2437 0.569033 16.28C0.177684 15.3164-0.0156414 14.2813 0.000988665 13.2386C-0.0151588 12.1967 0.178223 11.1624 0.569225 10.1995C0.960228 9.23662 1.54057 8.36544 2.27453 7.63963C2.987 6.89194 3.84217 6.30072 4.78738 5.9024C5.7326 5.50408 6.74784 5.30708 7.77061 5.32353C8.79032 5.3046 9.80301 5.49887 10.7461 5.89435C11.6892 6.28982 12.5427 6.8781 13.2539 7.62284L13.2392 7.63777Z" fill="white"/>
+      <path d="M15.2673 2.24498C15.2644 2.03219 15.3044 1.82106 15.3848 1.62462C15.4651 1.42818 15.5841 1.25059 15.7344 1.10279C15.8812 0.952011 16.0559 0.832337 16.2483 0.750668C16.4408 0.669 16.6472 0.626953 16.8556 0.626953C17.0641 0.626953 17.2705 0.669 17.4629 0.750668C17.6554 0.832337 17.83 0.952011 17.9768 1.10279C18.1275 1.25032 18.2467 1.42786 18.3271 1.62436C18.4074 1.82087 18.4472 2.03212 18.444 2.24498V6.84546C19.7008 5.91603 21.2012 5.39782 22.9453 5.29081H23.1944C25.3855 5.41523 27.187 6.19785 28.5989 7.63865C29.3235 8.35568 29.8983 9.21446 30.289 10.1634C30.6797 11.1124 30.8782 12.132 30.8724 13.1611V19.6018C30.8865 19.8185 30.8517 20.0355 30.7707 20.2364C30.6897 20.4373 30.5647 20.6166 30.4053 20.7608C30.0857 21.0172 29.6908 21.1566 29.2841 21.1566C28.8773 21.1566 28.4824 21.0172 28.1629 20.7608C28.0066 20.6226 27.8832 20.4499 27.8023 20.2558C27.7213 20.0618 27.6849 19.8515 27.6957 19.641V13.191C27.6957 13.0955 27.7012 13.0002 27.7122 12.9054C27.6632 11.7694 27.1869 10.6961 26.3821 9.90809C25.9572 9.4612 25.4467 9.10789 24.8823 8.87002C24.318 8.63215 23.7117 8.51477 23.101 8.52515H23.0387C22.4299 8.51562 21.8257 8.63325 21.2633 8.87078C20.7008 9.10831 20.1921 9.4607 19.7685 9.90623C19.0098 10.646 18.5394 11.6403 18.444 12.7057V19.6391C18.4552 19.8497 18.419 20.0601 18.338 20.2542C18.257 20.4483 18.1334 20.621 17.9768 20.7589C17.6573 21.0153 17.2624 21.1547 16.8556 21.1547C16.4489 21.1547 16.0539 21.0153 15.7344 20.7589C15.575 20.6148 15.45 20.4354 15.369 20.2345C15.288 20.0337 15.2532 19.8166 15.2673 19.5999V2.24498Z" fill="white"/>
+      <path d="M33.7579 3.73612C33.549 3.73899 33.3418 3.69824 33.1489 3.61639C32.9561 3.53454 32.7818 3.41332 32.6367 3.26021C32.4864 3.11241 32.3674 2.93482 32.287 2.73838C32.2067 2.54194 32.1667 2.33081 32.1695 2.11802C32.1667 1.90523 32.2067 1.69411 32.287 1.49767C32.3674 1.30123 32.4864 1.12363 32.6367 0.975834C32.7835 0.825058 32.9581 0.705384 33.1506 0.623715C33.343 0.542047 33.5494 0.5 33.7579 0.5C33.9663 0.5 34.1727 0.542047 34.3652 0.623715C34.5576 0.705384 34.7323 0.825058 34.8791 0.975834C35.0294 1.12363 35.1484 1.30123 35.2287 1.49767C35.3091 1.69411 35.3491 1.90523 35.3462 2.11802C35.3491 2.33081 35.3091 2.54194 35.2287 2.73838C35.1484 2.93482 35.0294 3.11241 34.8791 3.26021C34.734 3.41332 34.5597 3.53454 34.3668 3.61639C34.174 3.69824 33.9668 3.73899 33.7579 3.73612ZM33.7579 21.1564C33.3372 21.1544 32.9343 20.9833 32.6369 20.6803C32.3394 20.3772 32.1714 19.9668 32.1695 19.5383V6.84542C32.1695 6.41627 32.3369 6.0047 32.6347 5.70125C32.9326 5.39779 33.3366 5.22732 33.7579 5.22732C34.1791 5.22732 34.5831 5.39779 34.881 5.70125C35.1789 6.0047 35.3462 6.41627 35.3462 6.84542V19.5364C35.3443 19.9649 35.1764 20.3754 34.8789 20.6784C34.5814 20.9814 34.1785 21.1525 33.7579 21.1545V21.1564Z" fill="white"/>
+      <path d="M36.5975 13.1617C36.5918 12.1327 36.7903 11.113 37.1809 10.1641C37.5716 9.21507 38.1465 8.35629 38.8711 7.63925C40.33 6.15676 42.3065 5.32422 44.3671 5.32422C46.4278 5.32422 48.4043 6.15676 49.8632 7.63925C50.5978 8.3647 51.1786 9.23577 51.57 10.1987C51.9613 11.1617 52.1548 12.1961 52.1386 13.2382C52.1549 14.2803 51.9615 15.3148 51.5701 16.2778C51.1788 17.2407 50.5979 18.1118 49.8632 18.8372C48.5494 20.1716 46.8112 20.9846 44.9615 21.13C43.1117 21.2754 41.2717 20.7437 39.7724 19.6304V25.8826C39.7724 26.3117 39.6051 26.7233 39.3072 27.0267C39.0093 27.3302 38.6053 27.5007 38.1841 27.5007C37.7628 27.5007 37.3588 27.3302 37.0609 27.0267C36.763 26.7233 36.5957 26.3117 36.5957 25.8826L36.5975 13.1617ZM39.7559 12.9079C39.7675 13.002 39.7736 13.0967 39.7743 13.1916V13.7944C39.8786 14.6713 40.223 15.5006 40.7681 16.1875C41.3133 16.8744 42.0371 17.3912 42.857 17.6787C43.6769 17.9663 44.5596 18.013 45.4043 17.8136C46.249 17.6141 47.0216 17.1766 47.6336 16.5509C48.0687 16.1182 48.4125 15.5995 48.6441 15.0267C48.8756 14.4539 48.99 13.8389 48.9802 13.2196C48.9771 12.2912 48.7049 11.3844 48.1976 10.6132C47.6904 9.84193 46.9707 9.24057 46.129 8.88463C45.2873 8.5287 44.3612 8.43406 43.4669 8.61261C42.5726 8.79115 41.75 9.23492 41.1025 9.88817C40.2909 10.6821 39.809 11.7629 39.7559 12.9079Z" fill="white"/>
+      <path d="M78.0782 21.1565C75.8871 21.0321 74.0856 20.2495 72.6737 18.8087C71.9494 18.0919 71.3746 17.2334 70.984 16.2848C70.5933 15.3361 70.3947 14.3169 70.4002 13.2881V7.16286C70.4002 6.5507 70.5559 6.08412 70.8674 5.76685C71.0142 5.61607 71.1888 5.4964 71.3813 5.41473C71.5737 5.33306 71.7801 5.29102 71.9886 5.29102C72.197 5.29102 72.4034 5.33306 72.5959 5.41473C72.7883 5.4964 72.963 5.61607 73.1098 5.76685C73.4212 6.08412 73.5769 6.53888 73.5769 7.13113V13.2564C73.5769 13.3516 73.5769 13.443 73.5623 13.5419C73.6133 14.6794 74.093 15.753 74.9015 16.5393C75.3248 16.9851 75.8335 17.3378 76.396 17.5753C76.9584 17.8129 77.5628 17.9303 78.1716 17.9203H78.2284C78.8373 17.9303 79.4416 17.8129 80.0041 17.5753C80.5666 17.3378 81.0753 16.9851 81.4986 16.5393C82.3082 15.7536 82.7887 14.6798 82.8396 13.5419C82.8287 13.4472 82.8232 13.3518 82.8232 13.2564V7.13113C82.8232 6.53888 82.9789 6.08412 83.2903 5.76685C83.4371 5.61607 83.6118 5.4964 83.8042 5.41473C83.9967 5.33306 84.2031 5.29102 84.4115 5.29102C84.62 5.29102 84.8264 5.33306 85.0188 5.41473C85.2113 5.4964 85.3859 5.61607 85.5327 5.76685C85.8442 6.08412 85.9999 6.5507 85.9999 7.16286V13.2881C86.0055 14.3171 85.8069 15.3365 85.4159 16.2852C85.0248 17.234 84.4495 18.0923 83.7245 18.8087C82.3114 20.2483 80.5099 21.0309 78.32 21.1565H78.0782Z" fill="white"/>
+      <path d="M66.7673 7.6666C65.3084 6.1841 63.3319 5.35156 61.2712 5.35156C59.2106 5.35156 57.2341 6.1841 55.7752 7.6666C55.0499 8.383 54.4742 9.24128 54.0826 10.1899C53.6909 11.1386 53.4915 12.1581 53.4961 13.1872V25.9118C53.5101 26.3316 53.6837 26.7296 53.9802 27.0215C54.2767 27.3135 54.673 27.4768 55.0854 27.4768C55.4978 27.4768 55.8941 27.3135 56.1906 27.0215C56.4871 26.7296 56.6607 26.3316 56.6747 25.9118V19.6596C58.1735 20.774 60.0137 21.3064 61.8638 21.161C63.7139 21.0156 65.4522 20.2018 66.7655 18.8664C67.5001 18.1411 68.0809 17.27 68.472 16.307C68.863 15.344 69.056 14.3095 69.039 13.2674C69.0564 12.2252 68.8638 11.1905 68.473 10.2271C68.0823 9.26378 67.5018 8.39231 66.7673 7.6666ZM65.1808 12.8923L61.4398 16.7127C61.2312 16.9233 60.9494 17.0414 60.6557 17.0414C60.362 17.0414 60.0802 16.9233 59.8716 16.7127L57.6475 14.4376C57.4398 14.2258 57.3232 13.9385 57.3233 13.6391C57.3234 13.4908 57.3522 13.344 57.4079 13.2071C57.4637 13.0702 57.5454 12.9457 57.6484 12.841C57.7514 12.7362 57.8736 12.6531 58.0081 12.5965C58.1426 12.5398 58.2867 12.5107 58.4322 12.5108C58.7262 12.5109 59.008 12.6301 59.2157 12.8419L60.6557 14.3088L63.6125 11.3003C63.8203 11.0885 64.1021 10.9694 64.396 10.9692C64.6899 10.969 64.9719 11.0878 65.1798 11.2994C65.3878 11.511 65.5047 11.7981 65.5049 12.0975C65.5051 12.3969 65.3885 12.6842 65.1808 12.896V12.8923Z" fill="white"/>
+    </svg>
+    <div class="topbar-badge">Diagnóstico Gratuito</div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-bar" id="pbar">
+    <div class="progress-fill" id="pfill" style="width:0%"></div>
+  </div>
+
+  <!-- SCREENS WRAP -->
+  <div class="screens-wrap">
+
+    <!-- ═══ S0 HOOK ═══ -->
+    <div class="screen active" id="s0">
+      <div class="screen-inner">
+
+        <div class="eyebrow a1">Descubra agora</div>
+
+        <div class="headline a2">
+          Você sabe<br>quanto paga de<br>streaming<br><span class="teal">de verdade?</span>
+        </div>
+
+        <div class="sub a3">
+          A maioria paga mais de <strong>R$150/mês</strong> sem perceber — e usa menos da metade do que assina.
+        </div>
+
+        <div class="stream-row a3">
+          <div class="s-chip"><div class="s-dot" style="background:#e50914"></div>Netflix</div>
+          <div class="s-chip"><div class="s-dot" style="background:#0095f7"></div>Disney+</div>
+          <div class="s-chip"><div class="s-dot" style="background:#00bcd4"></div>HBO Max</div>
+          <div class="s-chip"><div class="s-dot" style="background:#0066cc"></div>Paramount+</div>
+          <div class="s-chip"><div class="s-dot" style="background:#ff6500"></div>Crunchyroll</div>
+        </div>
+
+        <div class="stat-grid a4">
+          <div class="stat-card c-teal">
+            <div class="stat-n">3,8</div>
+            <div class="stat-d">streamings por pessoa na Classe A</div>
+          </div>
+          <div class="stat-card c-red">
+            <div class="stat-n">12%</div>
+            <div class="stat-d">não sabe quanto gasta por mês</div>
+          </div>
+          <div class="stat-card c-gold">
+            <div class="stat-n">R$118</div>
+            <div class="stat-d">gasto médio mensal real</div>
+          </div>
+          <div class="stat-card c-pur">
+            <div class="stat-n">44%</div>
+            <div class="stat-d">assina 4 ou mais serviços</div>
+          </div>
+        </div>
+
+        <div class="a5" style="margin-top:auto">
+          <button class="btn-p" onclick="go(1)">
+            Quero meu diagnóstico grátis →
+          </button>
+          <div class="trust-row" style="margin-top:14px">
+            <div class="trust-item">Grátis</div>
+            <div class="trust-item">Menos de 2 min</div>
+            <div class="trust-item">Sem cartão</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══ S1 NOME ═══ -->
+    <div class="screen" id="s1">
+      <div class="screen-inner">
+        <div class="fld-wrap">
+          <div class="eyebrow a1">Antes de começar</div>
+          <div class="fld-title a2">Como você<br>se <span class="teal">chama?</span></div>
+          <div class="fld-sub a3">Vamos personalizar seu diagnóstico com o seu nome.</div>
+          <div class="a4">
+            <label class="form-lbl" for="nameInput">Primeiro nome</label>
+            <input class="form-inp" id="nameInput" type="text" placeholder="Ex: João"
+              autocomplete="given-name" autocapitalize="words"
+              oninput="chkName()"
+              onkeydown="if(event.key==='Enter')document.getElementById('btnName').click()">
+          </div>
+          <div class="fld-hint a4">Só o primeiro nome tá ótimo <span class="tl">:)</span></div>
+        </div>
+        <div class="a5">
+          <button class="btn-p dis" id="btnName" onclick="go(2)">Continuar →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ S2 Q1 STREAMINGS ═══ -->
+    <div class="screen" id="s2">
+      <div class="screen-inner">
+        <div class="step-row">
+          <div class="sdot done"></div><div class="sdot on"></div>
+          <div class="sdot"></div><div class="sdot"></div>
+          <div class="slabel">Pergunta 1 de 3</div>
+        </div>
+        <div class="eyebrow a1" id="q1_greet">Oi! Vamos lá.</div>
+        <div class="headline a2" style="font-size:clamp(24px,6vw,34px)">
+          Quantos streamings<br>você assina <span class="teal">agora?</span>
+        </div>
+        <div class="sub a3" style="margin-bottom:18px">Netflix, Disney+, HBO, Globoplay, Amazon… conta todos.</div>
+
+        <div class="options a4" id="opts1">
+          <div class="opt" onclick="selOpt(this,'q1','1-2')">
+            <div class="opt-ico">📱</div>
+            <div class="opt-txt"><div class="opt-lbl">1 ou 2</div><div class="opt-sub">Só o essencial</div></div>
+            <div class="opt-chk"></div>
+          </div>
+          <div class="opt" onclick="selOpt(this,'q1','3-4')">
+            <div class="opt-ico">📺</div>
+            <div class="opt-txt"><div class="opt-lbl">3 ou 4</div><div class="opt-sub">Já tô no médio</div></div>
+            <div class="opt-chk"></div>
+          </div>
+          <div class="opt" onclick="selOpt(this,'q1','5+')">
+            <div class="opt-ico">🎬</div>
+            <div class="opt-txt"><div class="opt-lbl">5 ou mais</div><div class="opt-sub">Assino bastante coisa</div></div>
+            <div class="opt-chk"></div>
+          </div>
+          <div class="opt" onclick="selOpt(this,'q1','nao-sei')">
+            <div class="opt-ico">🤷</div>
+            <div class="opt-txt"><div class="opt-lbl">Não sei ao certo</div><div class="opt-sub">Tem coisa que nem lembro que assino</div></div>
+            <div class="opt-chk"></div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px" class="a5">
+          <button class="btn-p dis" id="btn2" onclick="go(3)">Próxima →</button>
+          <button class="btn-g" onclick="go(1)">← Voltar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ S3 Q2 SABE QUANTO PAGA? ═══ -->
+    <div class="screen" id="s3">
+      <div class="screen-inner">
+        <div class="step-row">
+          <div class="sdot done"></div><div class="sdot done"></div>
+          <div class="sdot on"></div><div class="sdot"></div>
+          <div class="slabel">Pergunta 2 de 3</div>
+        </div>
+        <div class="eyebrow a1" id="q2_pref">Ok, vamos ver…</div>
+        <div class="headline a2" style="font-size:clamp(22px,6vw,32px)">
+          Você sabe <span class="gold">exatamente</span><br>quanto paga<br>por mês no total?
+        </div>
+        <div class="sub a3" style="margin-bottom:18px">Todos os streamings somados.</div>
+
+        <div class="options a4" id="opts2">
+          <div class="opt" onclick="selOpt(this,'q2','sim')">
+            <div class="opt-ico">✅</div>
+            <div class="opt-txt"><div class="opt-lbl">Sim, sei exatamente</div><div class="opt-sub">Acompanho meus gastos de perto</div></div>
+            <div class="opt-chk"></div>
+          </div>
+          <div class="opt" onclick="selOpt(this,'q2','mais-ou-menos')">
+            <div class="opt-ico">🤔</div>
+            <div class="opt-txt"><div class="opt-lbl">Tenho uma noção</div><div class="opt-sub">Sei mais ou menos, não ao certo</div></div>
+            <div class="opt-chk"></div>
+          </div>
+          <div class="opt" onclick="selOpt(this,'q2','nao')">
+            <div class="opt-ico">😅</div>
+            <div class="opt-txt"><div class="opt-lbl">Honestamente, não sei</div><div class="opt-sub">Vai saindo no cartão e não acompanho</div></div>
+            <div class="opt-chk"></div>
+          </div>
+          <div class="opt" onclick="selOpt(this,'q2','assusta')">
+            <div class="opt-ico">😬</div>
+            <div class="opt-txt"><div class="opt-lbl">Prefiro não saber</div><div class="opt-sub">Acho que vai me assustar</div></div>
+            <div class="opt-chk"></div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px" class="a5">
+          <button class="btn-p dis" id="btn3" onclick="go(4)">Próxima →</button>
+          <button class="btn-g" onclick="go(2)">← Voltar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ S4 Q3 QUANTO ACHA QUE GASTA ═══ -->
+    <div class="screen" id="s4">
+      <div class="screen-inner">
+        <div class="step-row">
+          <div class="sdot done"></div><div class="sdot done"></div>
+          <div class="sdot done"></div><div class="sdot on"></div>
+          <div class="slabel">Pergunta 3 de 3</div>
+        </div>
+        <div class="eyebrow a1">Última — a mais importante</div>
+        <div class="headline a2" style="font-size:clamp(22px,6vw,32px)">
+          Quanto você <span class="gold">acha</span><br>que gasta<br>por mês?
+        </div>
+        <div class="sub a3" style="margin-bottom:16px">Chute mesmo. É exatamente isso que vamos descobrir.</div>
+
+        <div class="val-wrap a4">
+          <div class="val-lbl">Seu chute mensal</div>
+          <div class="val-row">
+            <span class="val-curr">R$</span>
+            <input class="val-input" id="valInput" type="number" inputmode="numeric"
+              placeholder="0" min="0" max="1000" oninput="onValChange(this)">
+          </div>
+          <input type="range" class="range" id="valSlider" min="20" max="500" value="80"
+            oninput="onSliderChange(this)" style="--pct:12%">
+          <div class="range-lbls"><span>R$ 20</span><span>R$ 260</span><span>R$ 500+</span></div>
+        </div>
+
+        <div id="q3hint" class="a5" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:14px;display:none">
+          <div style="font-size:13px;color:var(--text2);line-height:1.5">
+            💡 Quem assina <span id="q1ref">3–4</span> streamings geralmente paga entre <span id="rangeHint" style="color:var(--gold)">R$100–180</span>/mês. Seu chute está <span id="chuteFb" style="color:var(--teal)">próximo do esperado</span>.
+          </div>
+        </div>
+
+        <div style="margin-top:auto" class="a6">
+          <button class="btn-p dis" id="btn4" onclick="goLoading()">Ver meu diagnóstico →</button>
+          <button class="btn-g" onclick="go(3)">← Voltar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ S5 LOADING ═══ -->
+    <div class="screen" id="s5">
+      <div class="screen-inner" style="padding:0">
+        <div class="load-wrap">
+          <div class="load-eye">🔍</div>
+          <div class="load-title" id="loadTitle">Calculando…</div>
+          <div class="load-sub">Cruzando suas respostas com o padrão de consumo de streaming no Brasil</div>
+          <div class="load-steps">
+            <div class="load-step" id="ls1"><div class="ls-ico">📊</div><div class="ls-txt">Analisando perfil de assinatura…</div></div>
+            <div class="load-step" id="ls2"><div class="ls-ico">💰</div><div class="ls-txt">Calculando gasto estimado real…</div></div>
+            <div class="load-step" id="ls3"><div class="ls-ico">⏱️</div><div class="ls-txt">Calculando custo por hora assistida…</div></div>
+            <div class="load-step" id="ls4"><div class="ls-ico">🎯</div><div class="ls-txt">Montando diagnóstico personalizado…</div></div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Valor real estimado</div>
+            <div class="counter">R$<span id="cNum">0</span></div>
+            <div style="font-size:12px;color:var(--text3);margin-top:5px">/mês</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ S6 DIAGNÓSTICO + DOWNLOAD ═══ -->
+    <div class="screen" id="s6">
+      <div class="screen-inner">
+
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:14px" class="a1">
+          <div style="width:7px;height:7px;background:var(--red);border-radius:50%;animation:breathe 1.5s ease infinite"></div>
+          <div style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;color:var(--red);letter-spacing:.1em">Diagnóstico Gerado</div>
+        </div>
+
+        <div class="diag-top a2">
+          <div class="diag-lbl" id="diagLbl">Você provavelmente gasta</div>
+          <div class="diag-num" id="diagNum">R$ 0</div>
+          <div class="diag-num-sub">por mês em streaming</div>
+        </div>
+
+        <div class="verdict a3">
+          <div class="verdict-title" id="vTitle">Você não tem controle real do seu gasto</div>
+          <div class="verdict-txt" id="vTxt">…</div>
+        </div>
+
+        <div class="metrics a4">
+          <div class="metric"><div class="m-lbl">Gasto estimado</div><div class="m-val red" id="mv1">—</div><div class="m-sub">por mês</div></div>
+          <div class="metric"><div class="m-lbl">Você chutou</div><div class="m-val gold" id="mv2">—</div><div class="m-sub" id="ms2">diferença grande</div></div>
+          <div class="metric"><div class="m-lbl">Custo médio/hora</div><div class="m-val teal" id="mv3">—</div><div class="m-sub">por hora assistida</div></div>
+          <div class="metric"><div class="m-lbl">Desperdício est.</div><div class="m-val red" id="mv4">—</div><div class="m-sub">por mês</div></div>
+        </div>
+
+        <!-- CTA DOWNLOAD — brand pill style -->
+        <div class="a5">
+          <button class="btn-dl" onclick="handleDownload()">
+            <span class="btn-dl-pre">Assine agora com</span>
+            <!-- inline logo teal version -->
+            <svg width="72" height="23" viewBox="0 0 86 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13.2392 7.63777C13.2392 7.64896 13.2392 7.65456 13.2539 7.65456C13.5443 7.95215 13.7073 8.35473 13.7073 8.77436C13.7073 9.19399 13.5443 9.59657 13.2539 9.89415C13.1118 10.0447 12.941 10.1639 12.7519 10.2444C12.5628 10.325 12.3596 10.3652 12.1546 10.3626C11.949 10.3653 11.7451 10.3244 11.5559 10.2424C11.3667 10.1605 11.1962 10.0393 11.0554 9.88668H11.0408C10.6167 9.44351 10.1078 9.09389 9.54557 8.85951C8.98333 8.62514 8.37979 8.51103 7.77244 8.52427C7.16431 8.51466 6.56065 8.63151 5.99837 8.8677C5.4361 9.10388 4.92702 9.45442 4.50227 9.89788C4.06462 10.3276 3.71842 10.8444 3.48519 11.4163C3.25197 11.9881 3.1367 12.6027 3.14657 13.2218C3.13773 13.8413 3.25344 14.4562 3.48659 15.0285C3.71974 15.6007 4.06539 16.1184 4.50227 16.5495C4.92587 16.995 5.43457 17.3474 5.997 17.5849C6.55943 17.8224 7.16366 17.9401 7.77244 17.9305C8.37764 17.9395 8.97832 17.823 9.53797 17.5882C10.0976 17.3533 10.6045 17.005 11.0279 16.5644L11.0591 16.5327C11.202 16.384 11.3733 16.2666 11.5623 16.1877C11.7513 16.1088 11.9541 16.0699 12.1583 16.0735C12.368 16.0708 12.576 16.1116 12.7697 16.1934C12.9634 16.2752 13.1388 16.3964 13.285 16.5495C13.4356 16.6954 13.5549 16.8716 13.6353 17.0669C13.7157 17.2623 13.7555 17.4724 13.7522 17.6842C13.755 17.897 13.715 18.1081 13.6346 18.3045C13.5543 18.501 13.4353 18.6786 13.285 18.8264L13.2539 18.8581C12.5427 19.6023 11.6895 20.1903 10.7468 20.5857C9.80404 20.9812 8.7918 21.1757 7.77244 21.1574C6.74961 21.1743 5.73424 20.9775 4.78897 20.5791C3.84369 20.1808 2.98857 19.5894 2.27636 18.8413C1.54145 18.1153 0.960381 17.2437 0.569033 16.28C0.177684 15.3164-0.0156414 14.2813 0.000988665 13.2386C-0.0151588 12.1967 0.178223 11.1624 0.569225 10.1995C0.960228 9.23662 1.54057 8.36544 2.27453 7.63963C2.987 6.89194 3.84217 6.30072 4.78738 5.9024C5.7326 5.50408 6.74784 5.30708 7.77061 5.32353C8.79032 5.3046 9.80301 5.49887 10.7461 5.89435C11.6892 6.28982 12.5427 6.8781 13.2539 7.62284L13.2392 7.63777Z" fill="#00c9b1"/>
+              <path d="M15.2673 2.24498C15.2644 2.03219 15.3044 1.82106 15.3848 1.62462C15.4651 1.42818 15.5841 1.25059 15.7344 1.10279C15.8812 0.952011 16.0559 0.832337 16.2483 0.750668C16.4408 0.669 16.6472 0.626953 16.8556 0.626953C17.0641 0.626953 17.2705 0.669 17.4629 0.750668C17.6554 0.832337 17.83 0.952011 17.9768 1.10279C18.1275 1.25032 18.2467 1.42786 18.3271 1.62436C18.4074 1.82087 18.4472 2.03212 18.444 2.24498V6.84546C19.7008 5.91603 21.2012 5.39782 22.9453 5.29081H23.1944C25.3855 5.41523 27.187 6.19785 28.5989 7.63865C29.3235 8.35568 29.8983 9.21446 30.289 10.1634C30.6797 11.1124 30.8782 12.132 30.8724 13.1611V19.6018C30.8865 19.8185 30.8517 20.0355 30.7707 20.2364C30.6897 20.4373 30.5647 20.6166 30.4053 20.7608C30.0857 21.0172 29.6908 21.1566 29.2841 21.1566C28.8773 21.1566 28.4824 21.0172 28.1629 20.7608C28.0066 20.6226 27.8832 20.4499 27.8023 20.2558C27.7213 20.0618 27.6849 19.8515 27.6957 19.641V13.191C27.6957 13.0955 27.7012 13.0002 27.7122 12.9054C27.6632 11.7694 27.1869 10.6961 26.3821 9.90809C25.9572 9.4612 25.4467 9.10789 24.8823 8.87002C24.318 8.63215 23.7117 8.51477 23.101 8.52515H23.0387C22.4299 8.51562 21.8257 8.63325 21.2633 8.87078C20.7008 9.10831 20.1921 9.4607 19.7685 9.90623C19.0098 10.646 18.5394 11.6403 18.444 12.7057V19.6391C18.4552 19.8497 18.419 20.0601 18.338 20.2542C18.257 20.4483 18.1334 20.621 17.9768 20.7589C17.6573 21.0153 17.2624 21.1547 16.8556 21.1547C16.4489 21.1547 16.0539 21.0153 15.7344 20.7589C15.575 20.6148 15.45 20.4354 15.369 20.2345C15.288 20.0337 15.2532 19.8166 15.2673 19.5999V2.24498Z" fill="#00c9b1"/>
+              <path d="M33.7579 3.73612C33.549 3.73899 33.3418 3.69824 33.1489 3.61639C32.9561 3.53454 32.7818 3.41332 32.6367 3.26021C32.4864 3.11241 32.3674 2.93482 32.287 2.73838C32.2067 2.54194 32.1667 2.33081 32.1695 2.11802C32.1667 1.90523 32.2067 1.69411 32.287 1.49767C32.3674 1.30123 32.4864 1.12363 32.6367 0.975834C32.7835 0.825058 32.9581 0.705384 33.1506 0.623715C33.343 0.542047 33.5494 0.5 33.7579 0.5C33.9663 0.5 34.1727 0.542047 34.3652 0.623715C34.5576 0.705384 34.7323 0.825058 34.8791 0.975834C35.0294 1.12363 35.1484 1.30123 35.2287 1.49767C35.3091 1.69411 35.3491 1.90523 35.3462 2.11802C35.3491 2.33081 35.3091 2.54194 35.2287 2.73838C35.1484 2.93482 35.0294 3.11241 34.8791 3.26021C34.734 3.41332 34.5597 3.53454 34.3668 3.61639C34.174 3.69824 33.9668 3.73899 33.7579 3.73612ZM33.7579 21.1564C33.3372 21.1544 32.9343 20.9833 32.6369 20.6803C32.3394 20.3772 32.1714 19.9668 32.1695 19.5383V6.84542C32.1695 6.41627 32.3369 6.0047 32.6347 5.70125C32.9326 5.39779 33.3366 5.22732 33.7579 5.22732C34.1791 5.22732 34.5831 5.39779 34.881 5.70125C35.1789 6.0047 35.3462 6.41627 35.3462 6.84542V19.5364C35.3443 19.9649 35.1764 20.3754 34.8789 20.6784C34.5814 20.9814 34.1785 21.1525 33.7579 21.1545V21.1564Z" fill="#00c9b1"/>
+              <path d="M36.5975 13.1617C36.5918 12.1327 36.7903 11.113 37.1809 10.1641C37.5716 9.21507 38.1465 8.35629 38.8711 7.63925C40.33 6.15676 42.3065 5.32422 44.3671 5.32422C46.4278 5.32422 48.4043 6.15676 49.8632 7.63925C50.5978 8.3647 51.1786 9.23577 51.57 10.1987C51.9613 11.1617 52.1548 12.1961 52.1386 13.2382C52.1549 14.2803 51.9615 15.3148 51.5701 16.2778C51.1788 17.2407 50.5979 18.1118 49.8632 18.8372C48.5494 20.1716 46.8112 20.9846 44.9615 21.13C43.1117 21.2754 41.2717 20.7437 39.7724 19.6304V25.8826C39.7724 26.3117 39.6051 26.7233 39.3072 27.0267C39.0093 27.3302 38.6053 27.5007 38.1841 27.5007C37.7628 27.5007 37.3588 27.3302 37.0609 27.0267C36.763 26.7233 36.5957 26.3117 36.5957 25.8826L36.5975 13.1617ZM39.7559 12.9079C39.7675 13.002 39.7736 13.0967 39.7743 13.1916V13.7944C39.8786 14.6713 40.223 15.5006 40.7681 16.1875C41.3133 16.8744 42.0371 17.3912 42.857 17.6787C43.6769 17.9663 44.5596 18.013 45.4043 17.8136C46.249 17.6141 47.0216 17.1766 47.6336 16.5509C48.0687 16.1182 48.4125 15.5995 48.6441 15.0267C48.8756 14.4539 48.99 13.8389 48.9802 13.2196C48.9771 12.2912 48.7049 11.3844 48.1976 10.6132C47.6904 9.84193 46.9707 9.24057 46.129 8.88463C45.2873 8.5287 44.3612 8.43406 43.4669 8.61261C42.5726 8.79115 41.75 9.23492 41.1025 9.88817C40.2909 10.6821 39.809 11.7629 39.7559 12.9079Z" fill="#00c9b1"/>
+              <path d="M78.0782 21.1565C75.8871 21.0321 74.0856 20.2495 72.6737 18.8087C71.9494 18.0919 71.3746 17.2334 70.984 16.2848C70.5933 15.3361 70.3947 14.3169 70.4002 13.2881V7.16286C70.4002 6.5507 70.5559 6.08412 70.8674 5.76685C71.0142 5.61607 71.1888 5.4964 71.3813 5.41473C71.5737 5.33306 71.7801 5.29102 71.9886 5.29102C72.197 5.29102 72.4034 5.33306 72.5959 5.41473C72.7883 5.4964 72.963 5.61607 73.1098 5.76685C73.4212 6.08412 73.5769 6.53888 73.5769 7.13113V13.2564C73.5769 13.3516 73.5769 13.443 73.5623 13.5419C73.6133 14.6794 74.093 15.753 74.9015 16.5393C75.3248 16.9851 75.8335 17.3378 76.396 17.5753C76.9584 17.8129 77.5628 17.9303 78.1716 17.9203H78.2284C78.8373 17.9303 79.4416 17.8129 80.0041 17.5753C80.5666 17.3378 81.0753 16.9851 81.4986 16.5393C82.3082 15.7536 82.7887 14.6798 82.8396 13.5419C82.8287 13.4472 82.8232 13.3518 82.8232 13.2564V7.13113C82.8232 6.53888 82.9789 6.08412 83.2903 5.76685C83.4371 5.61607 83.6118 5.4964 83.8042 5.41473C83.9967 5.33306 84.2031 5.29102 84.4115 5.29102C84.62 5.29102 84.8264 5.33306 85.0188 5.41473C85.2113 5.4964 85.3859 5.61607 85.5327 5.76685C85.8442 6.08412 85.9999 6.5507 85.9999 7.16286V13.2881C86.0055 14.3171 85.8069 15.3365 85.4159 16.2852C85.0248 17.234 84.4495 18.0923 83.7245 18.8087C82.3114 20.2483 80.5099 21.0309 78.32 21.1565H78.0782Z" fill="#00c9b1"/>
+              <path d="M66.7673 7.6666C65.3084 6.1841 63.3319 5.35156 61.2712 5.35156C59.2106 5.35156 57.2341 6.1841 55.7752 7.6666C55.0499 8.383 54.4742 9.24128 54.0826 10.1899C53.6909 11.1386 53.4915 12.1581 53.4961 13.1872V25.9118C53.5101 26.3316 53.6837 26.7296 53.9802 27.0215C54.2767 27.3135 54.673 27.4768 55.0854 27.4768C55.4978 27.4768 55.8941 27.3135 56.1906 27.0215C56.4871 26.7296 56.6607 26.3316 56.6747 25.9118V19.6596C58.1735 20.774 60.0137 21.3064 61.8638 21.161C63.7139 21.0156 65.4522 20.2018 66.7655 18.8664C67.5001 18.1411 68.0809 17.27 68.472 16.307C68.863 15.344 69.056 14.3095 69.039 13.2674C69.0564 12.2252 68.8638 11.1905 68.473 10.2271C68.0823 9.26378 67.5018 8.39231 66.7673 7.6666ZM65.1808 12.8923L61.4398 16.7127C61.2312 16.9233 60.9494 17.0414 60.6557 17.0414C60.362 17.0414 60.0802 16.9233 59.8716 16.7127L57.6475 14.4376C57.4398 14.2258 57.3232 13.9385 57.3233 13.6391C57.3234 13.4908 57.3522 13.344 57.4079 13.2071C57.4637 13.0702 57.5454 12.9457 57.6484 12.841C57.7514 12.7362 57.8736 12.6531 58.0081 12.5965C58.1426 12.5398 58.2867 12.5107 58.4322 12.5108C58.7262 12.5109 59.008 12.6301 59.2157 12.8419L60.6557 14.3088L63.6125 11.3003C63.8203 11.0885 64.1021 10.9694 64.396 10.9692C64.6899 10.969 64.9719 11.0878 65.1798 11.2994C65.3878 11.511 65.5047 11.7981 65.5049 12.0975C65.5051 12.3969 65.3885 12.6842 65.1808 12.896V12.8923Z" fill="#00c9b1"/>
+            </svg>
+          </button>
+
+          <!-- email como opção secundária -->
+          <div class="email-strip" onclick="go(7)">
+            <div class="email-strip-ico">📩</div>
+            <div class="email-strip-txt">
+              <div class="email-strip-main">Receber esse diagnóstico por e-mail</div>
+              <div class="email-strip-sub">Mandamos o resultado + link do app</div>
+            </div>
+            <div class="email-strip-arr">›</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══ S7 EMAIL ═══ -->
+    <div class="screen" id="s7">
+      <div class="screen-inner">
+        <div class="fld-wrap">
+          <div class="fld-ctx teal a1">
+            <div class="fld-ctx-ico">📩</div>
+            <div class="fld-ctx-txt">Vamos salvar seu diagnóstico e mandar no seu e-mail agora — <strong>resultado completo + link do app Chippu</strong>.</div>
+          </div>
+          <div class="fld-title a2">Qual é o seu<br><span class="teal">melhor e-mail?</span></div>
+          <div class="fld-sub a3">Diagnóstico completo + link do Chippu chegam na sua caixa agora.</div>
+          <div class="a4">
+            <label class="form-lbl" for="emailInput">Seu e-mail</label>
+            <input class="form-inp" id="emailInput" type="email" inputmode="email"
+              placeholder="voce@email.com" autocomplete="email" autocapitalize="none"
+              oninput="chkEmail()"
+              onkeydown="if(event.key==='Enter')document.getElementById('btnEmail').click()">
+          </div>
+          <div class="fld-hint a4">Sem spam. Só o diagnóstico e o link. <span class="tl">Prometido.</span></div>
+          <div class="priv-note a4">
+            <div class="priv-ico">🔒</div>
+            <div class="priv-txt">Seus dados são protegidos e nunca compartilhados com terceiros.</div>
+          </div>
+        </div>
+        <div class="a5">
+          <button class="btn-p dis" id="btnEmail" onclick="go(8)">Enviar diagnóstico por e-mail →</button>
+          <button class="btn-g" onclick="go(6)">← Voltar ao diagnóstico</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ S8 TELEFONE ═══ -->
+    <div class="screen" id="s8">
+      <div class="screen-inner">
+        <div class="fld-wrap">
+          <div class="fld-ctx teal a1">
+            <div class="fld-ctx-ico">💬</div>
+            <div class="fld-ctx-txt">O Chippu é <strong style="color:var(--teal)">100% gratuito</strong>. Mandamos o link de download direto no seu WhatsApp.</div>
+          </div>
+          <div class="fld-title a2">Qual é o seu<br><span class="teal">WhatsApp?</span></div>
+          <div class="fld-sub a3" id="phoneSub">Link do app chegando aí agora.</div>
+          <div class="a4">
+            <label class="form-lbl" for="phoneInput">Número com DDD</label>
+            <input class="form-inp" id="phoneInput" type="tel"
+              placeholder="(11) 9 0000-0000" inputmode="tel" autocomplete="tel"
+              oninput="fmtPhone(this);chkPhone()"
+              onkeydown="if(event.key==='Enter')document.getElementById('btnPhone').click()">
+          </div>
+          <div class="fld-hint a4">Só para enviar o link do Chippu. <span class="tl">Nada mais.</span></div>
+          <div class="priv-note a4">
+            <div class="priv-ico">🔒</div>
+            <div class="priv-txt">Não é obrigatório — mas facilita muito o download.</div>
+          </div>
+        </div>
+        <div class="a5">
+          <button class="btn-p dis" id="btnPhone" onclick="submitLead()">Quero o app gratuito →</button>
+          <button class="btn-g" onclick="submitLead(true)" style="margin-top:8px">Prefiro baixar pelo e-mail mesmo →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ S9 SUCESSO ═══ -->
+    <div class="screen" id="s9">
+      <div class="screen-inner" style="padding:0">
+        <div class="ok-wrap">
+          <div class="ok-ico">🎉</div>
+          <div class="ok-title" id="okTitle">Pronto!</div>
+          <div class="ok-sub" id="okSub">Seu diagnóstico foi enviado por e-mail. Agora é só baixar o Chippu.</div>
+
+          <div class="ok-steps">
+            <div class="ok-step"><div class="ok-num">1</div><div class="ok-txt">Confira seu e-mail — diagnóstico completo está lá</div></div>
+            <div class="ok-step"><div class="ok-num">2</div><div class="ok-txt">Baixe o Chippu pelo link que chega no WhatsApp</div></div>
+            <div class="ok-step"><div class="ok-num">3</div><div class="ok-txt">Conecte seus streamings e veja o painel — de graça</div></div>
+          </div>
+
+          <div class="ok-diag-card">
+            <div class="ok-diag-lbl">Seu diagnóstico</div>
+            <div class="ok-diag-num" id="okDiag">R$ 0</div>
+            <div class="ok-diag-sub">por mês estimado</div>
+          </div>
+
+          <!-- botão download na success também -->
+          <button class="btn-dl" style="width:100%" onclick="alert('Redirecionando para App Store / Play Store…')">
+            <span class="btn-dl-pre">Baixar agora com</span>
+            <svg width="60" height="20" viewBox="0 0 86 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13.2392 7.63777C13.5443 7.95215 13.7073 8.35473 13.7073 8.77436C13.7073 9.19399 13.5443 9.59657 13.2539 9.89415C13.1118 10.0447 12.941 10.1639 12.7519 10.2444C12.5628 10.325 12.3596 10.3652 12.1546 10.3626C11.949 10.3653 11.7451 10.3244 11.5559 10.2424C11.3667 10.1605 11.1962 10.0393 11.0554 9.88668H11.0408C10.6167 9.44351 10.1078 9.09389 9.54557 8.85951C8.98333 8.62514 8.37979 8.51103 7.77244 8.52427C7.16431 8.51466 6.56065 8.63151 5.99837 8.8677C5.4361 9.10388 4.92702 9.45442 4.50227 9.89788C4.06462 10.3276 3.71842 10.8444 3.48519 11.4163C3.25197 11.9881 3.1367 12.6027 3.14657 13.2218C3.13773 13.8413 3.25344 14.4562 3.48659 15.0285C3.71974 15.6007 4.06539 16.1184 4.50227 16.5495C4.92587 16.995 5.43457 17.3474 5.997 17.5849C6.55943 17.8224 7.16366 17.9401 7.77244 17.9305C8.37764 17.9395 8.97832 17.823 9.53797 17.5882C10.0976 17.3533 10.6045 17.005 11.0279 16.5644L11.0591 16.5327C11.202 16.384 11.3733 16.2666 11.5623 16.1877C11.7513 16.1088 11.9541 16.0699 12.1583 16.0735C12.368 16.0708 12.576 16.1116 12.7697 16.1934C12.9634 16.2752 13.1388 16.3964 13.285 16.5495C13.4356 16.6954 13.5549 16.8716 13.6353 17.0669C13.7157 17.2623 13.7555 17.4724 13.7522 17.6842C13.755 17.897 13.715 18.1081 13.6346 18.3045C13.5543 18.501 13.4353 18.6786 13.285 18.8264L13.2539 18.8581C12.5427 19.6023 11.6895 20.1903 10.7468 20.5857C9.80404 20.9812 8.7918 21.1757 7.77244 21.1574C6.74961 21.1743 5.73424 20.9775 4.78897 20.5791C3.84369 20.1808 2.98857 19.5894 2.27636 18.8413C1.54145 18.1153 0.960381 17.2437 0.569033 16.28C0.177684 15.3164-0.0156414 14.2813 0.000988665 13.2386C-0.0151588 12.1967 0.178223 11.1624 0.569225 10.1995C0.960228 9.23662 1.54057 8.36544 2.27453 7.63963C2.987 6.89194 3.84217 6.30072 4.78738 5.9024C5.7326 5.50408 6.74784 5.30708 7.77061 5.32353C8.79032 5.3046 9.80301 5.49887 10.7461 5.89435C11.6892 6.28982 12.5427 6.8781 13.2539 7.62284L13.2392 7.63777Z" fill="#00c9b1"/>
+              <path d="M36.5975 13.1617C36.5918 12.1327 36.7903 11.113 37.1809 10.1641C37.5716 9.21507 38.1465 8.35629 38.8711 7.63925C40.33 6.15676 42.3065 5.32422 44.3671 5.32422C46.4278 5.32422 48.4043 6.15676 49.8632 7.63925C50.5978 8.3647 51.1786 9.23577 51.57 10.1987C51.9613 11.1617 52.1548 12.1961 52.1386 13.2382C52.1549 14.2803 51.9615 15.3148 51.5701 16.2778C51.1788 17.2407 50.5979 18.1118 49.8632 18.8372C48.5494 20.1716 46.8112 20.9846 44.9615 21.13C43.1117 21.2754 41.2717 20.7437 39.7724 19.6304V25.8826C39.7724 26.3117 39.6051 26.7233 39.3072 27.0267C39.0093 27.3302 38.6053 27.5007 38.1841 27.5007C37.7628 27.5007 37.3588 27.3302 37.0609 27.0267C36.763 26.7233 36.5957 26.3117 36.5957 25.8826L36.5975 13.1617Z" fill="#00c9b1"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /screens-wrap -->
+</div><!-- /funnel -->
+
+<script>
+// ── STATE ──────────────────────────────
+const ST = { name:'', email:'', phone:'', q1:null, q2:null, q3:0 };
+let diag = {};
+
+const RV = {
+  '1-2':    { base:72,  uso:65, cph:2.1 },
+  '3-4':    { base:145, uso:42, cph:3.2 },
+  '5+':     { base:248, uso:35, cph:4.5 },
+  'nao-sei':{ base:120, uso:38, cph:3.8 },
+};
+
+// ── NAVIGATION ──────────────────────────
+function setProgress(pct) {
+  document.getElementById('pfill').style.width = pct + '%';
+}
+
+const PROG = { 0:0,1:12,2:28,3:48,4:65,5:78,6:84,7:90,8:96,9:100 };
+
+function go(n) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active','exit'));
+  document.querySelectorAll('[class^="a"],[class*=" a"]').forEach(el => {
+    el.style.animation='none'; void el.offsetHeight; el.style.animation='';
+  });
+
+  // personalise before showing
+  const nm = ST.name;
+  const el1 = document.getElementById('q1_greet');
+  if (el1) el1.textContent = nm ? `Oi, ${nm}! Vamos lá.` : 'Oi! Vamos lá.';
+  const el2 = document.getElementById('q2_pref');
+  if (el2) el2.textContent = nm ? `Certo, ${nm}…` : 'Ok, vamos ver…';
+  if (n===8 && nm) {
+    const ps = document.getElementById('phoneSub');
+    if (ps) ps.textContent = `Mandamos o link do Chippu pra você, ${nm}.`;
+  }
+
+  document.getElementById('s'+n).classList.add('active');
+  setProgress(PROG[n] || 0);
+}
+
+// ── NAME ──────────────────────────────
+function chkName() {
+  const v = document.getElementById('nameInput').value.trim();
+  ST.name = v;
+  document.getElementById('btnName').classList.toggle('dis', v.length < 2);
+}
+
+// ── OPTIONS ────────────────────────────
+function selOpt(el, key, val) {
+  el.closest('.options').querySelectorAll('.opt').forEach(o => {
+    o.classList.remove('sel');
+    o.querySelector('.opt-chk').textContent = '';
+  });
+  el.classList.add('sel');
+  el.querySelector('.opt-chk').textContent = '✓';
+  ST[key] = val;
+  const bmap = { q1:'btn2', q2:'btn3' };
+  const btn = document.getElementById(bmap[key]);
+  if (btn) btn.classList.remove('dis');
+  if (key==='q1') {
+    const refs = {'1-2':'1–2','3-4':'3–4','5+':'5+','nao-sei':'vários'};
+    const rngs = {'1-2':'R$50–90','3-4':'R$100–180','5+':'R$180–320','nao-sei':'R$80–200'};
+    document.getElementById('q1ref').textContent  = refs[val];
+    document.getElementById('rangeHint').textContent = rngs[val];
+  }
+}
+
+// ── SLIDER ─────────────────────────────
+function onValChange(inp) {
+  const v = parseInt(inp.value)||0; ST.q3 = v;
+  const sl = document.getElementById('valSlider');
+  sl.value = Math.min(v,500); updSlider(sl); updHint(v);
+  document.getElementById('btn4').classList.toggle('dis', v<=0);
+}
+function onSliderChange(sl) {
+  const v = parseInt(sl.value); ST.q3 = v;
+  document.getElementById('valInput').value = v;
+  updSlider(sl); updHint(v);
+  document.getElementById('btn4').classList.remove('dis');
+}
+function updSlider(sl) {
+  const p = ((sl.value-sl.min)/(sl.max-sl.min))*100;
+  sl.style.setProperty('--pct', p+'%');
+}
+function updHint(v) {
+  const hint = document.getElementById('q3hint');
+  if (!v) { hint.style.display='none'; return; }
+  hint.style.display='block';
+  const real = (RV[ST.q1]||RV['3-4']).base;
+  const d = real-v;
+  let fb = '';
+  if      (d>60)  fb='<span style="color:var(--red)">bem abaixo do real</span>';
+  else if (d>25)  fb='<span style="color:var(--gold)">um pouco abaixo</span>';
+  else if (d<-25) fb='<span style="color:var(--teal)">acima do esperado</span>';
+  else            fb='<span style="color:var(--teal)">próximo do esperado</span>';
+  document.getElementById('chuteFb').innerHTML = fb;
+}
+
+// ── LOADING ────────────────────────────
+function goLoading() {
+  buildDiag(); go(5);
+  document.getElementById('loadTitle').textContent =
+    ST.name ? `Calculando, ${ST.name}…` : 'Calculando…';
+  ['ls1','ls2','ls3','ls4'].forEach((id,i) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      el.classList.add('done'); el.querySelector('.ls-ico').textContent='✓';
+    }, 700+i*800);
+  });
+  const tgt=diag.real, t0=Date.now(), dur=3000;
+  const tick=()=>{
+    const p=Math.min((Date.now()-t0)/dur,1);
+    const e=1-Math.pow(1-p,3);
+    document.getElementById('cNum').textContent=Math.round(e*tgt);
+    if(p<1)requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  setTimeout(()=>{ applyDiag(); go(6); }, 3900);
+}
+
+function buildDiag() {
+  const q1=ST.q1||'3-4', q2=ST.q2||'nao', rv=RV[q1];
+  let real=rv.base;
+  if(q2==='nao'||q2==='assusta') real=Math.round(real*1.08);
+  const waste=Math.round(real*(1-rv.uso/100));
+  const numStr={'1-2':'1–2 streamings','3-4':'3–4 streamings','5+':'5+ streamings','nao-sei':'vários streamings'}[q1];
+  let vTitle='', vTxt='';
+  if(q2==='sim'&&Math.abs(real-ST.q3)<20){
+    vTitle='Você tem consciência — mas falta precisão real';
+    vTxt=`Com <strong>${numStr}</strong>, você gasta cerca de <strong>R$ ${real}/mês</strong>. Mas qual plataforma dá mais retorno por hora assistida?`;
+  } else if(q2==='assusta'||q2==='nao'){
+    vTitle='Você não tem controle real do seu gasto';
+    vTxt=`Com <strong>${numStr}</strong>, você provavelmente paga <strong>R$ ${real}/mês</strong> — mas usa em média só <strong>${rv.uso}%</strong> do que assina. São <strong>R$ ${waste}</strong> saindo por mês sem retorno real.`;
+  } else {
+    vTitle='Você tem noção — mas está subestimando';
+    vTxt=`Com <strong>${numStr}</strong>, o gasto real costuma ser <strong>R$ ${real}/mês</strong>. Você chutou R$ ${ST.q3||'—'} — a diferença vem de planos anuais e cobranças em dólar que a gente esquece.`;
+  }
+  diag = { real, waste, rv, vTitle, vTxt, numStr };
+}
+
+function applyDiag() {
+  const d=diag, nm=ST.name;
+  document.getElementById('diagLbl').textContent = nm?`${nm}, você provavelmente gasta`:'Você provavelmente gasta';
+  document.getElementById('diagNum').textContent='R$ '+d.real;
+  document.getElementById('vTitle').textContent=d.vTitle;
+  document.getElementById('vTxt').innerHTML=d.vTxt;
+  document.getElementById('mv1').textContent='R$ '+d.real;
+  document.getElementById('mv2').textContent=ST.q3>0?'R$ '+ST.q3:'—';
+  document.getElementById('ms2').textContent=(ST.q3>0&&d.real-ST.q3>20)?`R$ ${d.real-ST.q3} a mais`:'seu chute';
+  document.getElementById('mv3').textContent='R$ '+d.rv.cph.toFixed(2).replace('.',',');
+  document.getElementById('mv4').textContent='R$ '+d.waste;
+  document.getElementById('okDiag').textContent='R$ '+d.real;
+}
+
+// ── DOWNLOAD ───────────────────────────
+function handleDownload() {
+  console.log('DOWNLOAD →', { nome:ST.name, diag_real:diag.real });
+  // produção: window.open('https://chippu.app/download','_blank');
+  go(7); // ainda captura email
+}
+
+// ── EMAIL ──────────────────────────────
+function chkEmail() {
+  const v=document.getElementById('emailInput').value.trim(); ST.email=v;
+  const ok=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  document.getElementById('btnEmail').classList.toggle('dis',!ok);
+}
+
+// ── PHONE ──────────────────────────────
+function fmtPhone(inp) {
+  let v=inp.value.replace(/\D/g,'');
+  if(v.length>11)v=v.slice(0,11);
+  if(v.length>7)v=`(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+  else if(v.length>2)v=`(${v.slice(0,2)}) ${v.slice(2)}`;
+  inp.value=v;
+}
+function chkPhone() {
+  const v=document.getElementById('phoneInput').value.replace(/\D/g,''); ST.phone=v;
+  document.getElementById('btnPhone').classList.toggle('dis',v.length<10);
+}
+
+// ── SUBMIT ─────────────────────────────
+function submitLead(skip=false) {
+  if(!skip){const v=document.getElementById('phoneInput').value.replace(/\D/g,'');if(v.length>=10)ST.phone=v;}
+  const nm=ST.name||'você';
+  document.getElementById('okTitle').textContent=`Pronto, ${nm}!`;
+  document.getElementById('okSub').textContent=ST.phone.length>=10
+    ?`Diagnóstico enviado para ${ST.email}. O link do Chippu chega no seu WhatsApp agora.`
+    :`Diagnóstico enviado para ${ST.email}. Confira sua caixa de entrada.`;
+  console.log('LEAD →',{ nome:ST.name,email:ST.email,telefone:ST.phone||'—',q1:ST.q1,q2:ST.q2,q3:ST.q3,diag_real:diag.real });
+  go(9);
+}
+</script>
+</body>
+</html>
