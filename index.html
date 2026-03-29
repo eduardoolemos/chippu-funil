@@ -1200,14 +1200,34 @@ function enviarDiagnosticoComoImagem() {
   const tela = document.getElementById('s6');
   if (!tela) return;
 
-  html2canvas(tela, {
+  // Clona a tela e renderiza fora da viewport para evitar imagem preta
+  const clone = tela.cloneNode(true);
+  clone.style.cssText = [
+    'position:fixed',
+    'top:0',
+    'left:-9999px',
+    'width:480px',
+    'height:auto',
+    'opacity:1',
+    'pointer-events:none',
+    'overflow:visible',
+    'transform:none',
+    'background:#080d10',
+    'padding:24px',
+    'z-index:-1'
+  ].join(';');
+  document.body.appendChild(clone);
+
+  html2canvas(clone, {
     backgroundColor: '#080d10',
     scale: 2,
     useCORS: true,
     logging: false,
+    width: 480,
+    windowWidth: 480,
   }).then(canvas => {
+    document.body.removeChild(clone);
     const imagemBase64 = canvas.toDataURL('image/png');
-    const utms = getUrlParams();
 
     const payload = {
       email:      ST.email || '',
@@ -1222,7 +1242,10 @@ function enviarDiagnosticoComoImagem() {
     }).catch(err => console.warn('Webhook diag erro:', err));
 
     console.log('DIAG SCREENSHOT →', { nome: ST.name, diag_real: diag.real });
-  }).catch(err => console.warn('html2canvas erro:', err));
+  }).catch(err => {
+    document.body.removeChild(clone);
+    console.warn('html2canvas erro:', err);
+  });
 }
 
 function chkEmail() {
