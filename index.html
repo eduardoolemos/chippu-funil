@@ -1211,7 +1211,22 @@ function chkPhone() {
   document.getElementById('btnPhone').classList.toggle('dis',v.length<10);
 }
 
+// ── UTMs + FBCLID ──────────────────────
+function getUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    utm_source:   params.get('utm_source')   || '',
+    utm_medium:   params.get('utm_medium')   || '',
+    utm_campaign: params.get('utm_campaign') || '',
+    utm_content:  params.get('utm_content')  || '',
+    utm_term:     params.get('utm_term')     || '',
+    fbclid:       params.get('fbclid')       || '',
+  };
+}
+
 // ── SUBMIT ─────────────────────────────
+const WEBHOOK_URL = 'https://webhook.trafegoedu.com.br/webhook/e9e1a5d0-373c-4259-8e61-0ac3c02846e6';
+
 function submitLead(skip=false) {
   if(!skip){const v=document.getElementById('phoneInput').value.replace(/\D/g,'');if(v.length>=10)ST.phone=v;}
   const nm=ST.name||'você';
@@ -1219,7 +1234,34 @@ function submitLead(skip=false) {
   document.getElementById('okSub').textContent=ST.phone.length>=10
     ?`Diagnóstico enviado para ${ST.email}. O link do Chippu chega no seu WhatsApp agora.`
     :`Diagnóstico enviado para ${ST.email}. Confira sua caixa de entrada.`;
-  console.log('LEAD →',{ nome:ST.name,email:ST.email,telefone:ST.phone||'—',q1:ST.q1,q2:ST.q2,q3:ST.q3,diag_real:diag.real });
+
+  const utms = getUrlParams();
+
+  const payload = {
+    nome:           ST.name    || '',
+    email:          ST.email   || '',
+    telefone:       ST.phone   || '',
+    q1_assinaturas: ST.q1      || '',
+    q2_controle:    ST.q2      || '',
+    q3_valor_gasto: ST.q3      || 0,
+    diagnostico:    diag.real  || '',
+    data_hora:      new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+    utm_source:     utms.utm_source,
+    utm_medium:     utms.utm_medium,
+    utm_campaign:   utms.utm_campaign,
+    utm_content:    utms.utm_content,
+    utm_term:       utms.utm_term,
+    fbclid:         utms.fbclid,
+    pagina:         window.location.href,
+  };
+
+  fetch(WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(err => console.warn('Webhook erro:', err));
+
+  console.log('LEAD →', payload);
   go(9);
 }
 </script>
