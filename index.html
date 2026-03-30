@@ -1254,55 +1254,117 @@ function handleDownload() {
 const WEBHOOK_DIAG_URL = 'https://webhook.trafegoedu.com.br/webhook/151cb382-a955-4ecf-9d7c-e6a8e0e52778';
 
 function enviarDiagnosticoComoImagem() {
-  const tela = document.getElementById('s6');
-  if (!tela) return;
+  const W = 480, scale = 2;
+  const canvas = document.createElement('canvas');
+  const d = diag;
+  canvas.width  = W * scale;
+  canvas.height = 620 * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
 
-  // Clona a tela e renderiza fora da viewport para evitar imagem preta
-  const clone = tela.cloneNode(true);
-  clone.style.cssText = [
-    'position:fixed',
-    'top:0',
-    'left:-9999px',
-    'width:480px',
-    'height:auto',
-    'opacity:1',
-    'pointer-events:none',
-    'overflow:visible',
-    'transform:none',
-    'background:#080d10',
-    'padding:24px',
-    'z-index:-1'
-  ].join(';');
-  document.body.appendChild(clone);
+  const BG      = '#080d10';
+  const SURFACE = '#0f1820';
+  const BORDER  = '#1e3040';
+  const TEAL    = '#00c9b1';
+  const RED     = '#ff4a4a';
+  const GOLD    = '#f5c842';
+  const TEXT2   = '#567080';
+  const WHITE   = '#eef6f8';
 
-  html2canvas(clone, {
-    backgroundColor: '#080d10',
-    scale: 2,
-    useCORS: true,
-    logging: false,
-    width: 480,
-    windowWidth: 480,
-  }).then(canvas => {
-    document.body.removeChild(clone);
-    const imagemBase64 = canvas.toDataURL('image/png');
+  function rr(x, y, w, h, r, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
+    if (fill)   { ctx.fillStyle=fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle=stroke; ctx.lineWidth=1; ctx.stroke(); }
+  }
 
-    const payload = {
-      email:      ST.email || '',
-      telefone:   ST.phone || '',
-      screenshot: imagemBase64,
-    };
+  function wrapText(text, x, y, maxW, lineH) {
+    const words = text.split(' ');
+    let line = '';
+    for (const w of words) {
+      const test = line + w + ' ';
+      if (ctx.measureText(test).width > maxW && line) {
+        ctx.fillText(line.trim(), x, y); y += lineH; line = w + ' ';
+      } else { line = test; }
+    }
+    ctx.fillText(line.trim(), x, y);
+  }
 
-    fetch(WEBHOOK_DIAG_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).catch(err => console.warn('Webhook diag erro:', err));
+  // Fundo
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, W, 620);
 
-    console.log('DIAG SCREENSHOT →', { nome: ST.name, diag_real: diag.real });
-  }).catch(err => {
-    document.body.removeChild(clone);
-    console.warn('html2canvas erro:', err);
+  // Topbar
+  rr(0, 0, W, 48, 0, '#0b1215');
+  ctx.strokeStyle = BORDER; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0,48); ctx.lineTo(W,48); ctx.stroke();
+  ctx.fillStyle = RED;
+  ctx.beginPath(); ctx.arc(24, 24, 4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = RED; ctx.font = '10px monospace';
+  ctx.fillText('DIAGNOSTICO GERADO', 34, 28);
+
+  // Logo texto canto direito
+  ctx.fillStyle = TEAL; ctx.font = 'bold 13px monospace';
+  ctx.fillText('chippu', W - 70, 28);
+
+  // Nome + valor
+  const nm = ST.name || '';
+  ctx.fillStyle = TEXT2; ctx.font = '13px sans-serif';
+  ctx.fillText(nm ? nm + ', voce provavelmente gasta' : 'Voce provavelmente gasta', 24, 80);
+  ctx.fillStyle = TEAL; ctx.font = 'bold 48px sans-serif';
+  ctx.fillText('R$ ' + d.real, 24, 136);
+  ctx.fillStyle = TEXT2; ctx.font = '13px sans-serif';
+  ctx.fillText('por mes em streaming', 24, 158);
+
+  // Divisória
+  ctx.strokeStyle = BORDER; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(24,174); ctx.lineTo(W-24,174); ctx.stroke();
+
+  // Veredito
+  ctx.fillStyle = WHITE; ctx.font = 'bold 15px sans-serif';
+  wrapText(d.vTitle || '', 24, 198, W - 48, 22);
+
+  // 4 métricas
+  const metricas = [
+    { lbl: 'Gasto estimado',   val: 'R$ ' + d.real,                              cor: RED  },
+    { lbl: 'Voce chutou',      val: ST.q3 > 0 ? 'R$ ' + ST.q3 : '-',            cor: GOLD },
+    { lbl: 'Custo medio/hora', val: 'R$ ' + d.rv.cph.toFixed(2).replace('.',','), cor: TEAL },
+    { lbl: 'Desperdicio est.', val: 'R$ ' + d.waste,                             cor: RED  },
+  ];
+  const mW = (W - 48 - 12) / 2;
+  metricas.forEach((m, i) => {
+    const col = i % 2, row = Math.floor(i / 2);
+    const mx = 24 + col * (mW + 12), my = 236 + row * 90;
+    rr(mx, my, mW, 76, 8, SURFACE, BORDER);
+    ctx.fillStyle = TEXT2; ctx.font = '11px sans-serif';
+    ctx.fillText(m.lbl, mx+12, my+22);
+    ctx.fillStyle = m.cor; ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(m.val, mx+12, my+50);
+    ctx.fillStyle = TEXT2; ctx.font = '11px sans-serif';
+    ctx.fillText('por mes', mx+12, my+66);
   });
+
+  // Rodapé
+  ctx.strokeStyle = BORDER; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(24,555); ctx.lineTo(W-24,555); ctx.stroke();
+  ctx.fillStyle = TEXT2; ctx.font = '11px monospace';
+  ctx.fillText('chippu.app  -  diagnostico gratuito', 24, 576);
+  const dt = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  ctx.fillStyle = TEAL; ctx.font = '11px monospace';
+  ctx.fillText(dt, W - 24 - ctx.measureText(dt).width, 576);
+
+  // Envia
+  const imagemBase64 = canvas.toDataURL('image/png');
+  fetch(WEBHOOK_DIAG_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: ST.email || '', telefone: ST.phone || '', screenshot: imagemBase64 })
+  }).catch(err => console.warn('Webhook diag erro:', err));
+
+  console.log('DIAG SCREENSHOT →', { nome: ST.name, diag_real: diag.real });
 }
 
 function chkEmail() {
