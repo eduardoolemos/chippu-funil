@@ -1050,6 +1050,62 @@ function setProgress(pct) {
 
 const PROG = { 0:0,1:12,2:28,3:48,4:65,5:78,6:84,7:90,8:96,9:100 };
 
+// ── TRACKING DE ETAPAS ─────────────────
+const WEBHOOK_TRACKING_URL = 'https://webhook.trafegoedu.com.br/webhook/recebe_pontuacao';
+
+const TELA_NOMES = {
+  0: 'intro',
+  1: 'nome',
+  2: 'qtd_assinaturas',
+  3: 'controle_gastos',
+  4: 'valor_estimado',
+  5: 'loading_diagnostico',
+  6: 'resultado_diagnostico',
+  7: 'captura_email',
+  8: 'captura_telefone',
+  9: 'confirmacao_final'
+};
+
+let telaAnterior = null;
+let tempoEntradaTela = Date.now();
+let sessionId = Math.random().toString(36).slice(2) + Date.now();
+
+function trackTela(n) {
+  const agora = Date.now();
+  const tempoNaTela = telaAnterior !== null ? Math.round((agora - tempoEntradaTela) / 1000) : 0;
+  const utms = getUrlParams();
+
+  const payload = {
+    evento:          'mudanca_tela',
+    session_id:      sessionId,
+    tela_atual:      n,
+    tela_nome:       TELA_NOMES[n] || 'desconhecida',
+    tela_anterior:   telaAnterior,
+    progresso_pct:   PROG[n] || 0,
+    tempo_tela_anterior_seg: tempoNaTela,
+    nome:            ST.name    || '',
+    email:           ST.email   || '',
+    telefone:        ST.phone   || '',
+    data_hora:       new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+    utm_source:      utms.utm_source,
+    utm_medium:      utms.utm_medium,
+    utm_campaign:    utms.utm_campaign,
+    utm_content:     utms.utm_content,
+    utm_term:        utms.utm_term,
+    fbclid:          utms.fbclid,
+    pagina:          window.location.href,
+  };
+
+  fetch(WEBHOOK_TRACKING_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(() => {});
+
+  telaAnterior = n;
+  tempoEntradaTela = agora;
+}
+
 function go(n) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active','exit'));
   document.querySelectorAll('[class^="a"],[class*=" a"]').forEach(el => {
@@ -1069,6 +1125,7 @@ function go(n) {
 
   document.getElementById('s'+n).classList.add('active');
   setProgress(PROG[n] || 0);
+  trackTela(n);
 }
 
 // ── NAME ──────────────────────────────
