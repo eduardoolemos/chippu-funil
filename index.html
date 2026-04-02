@@ -1243,10 +1243,19 @@ function applyDiag() {
 }
 
 // ── DOWNLOAD ───────────────────────────
+function getStoreUrl() {
+  const ua = navigator.userAgent || '';
+  if (/iphone|ipad|ipod|macintosh/i.test(ua) && navigator.maxTouchPoints > 0)
+    return 'https://apps.apple.com/br/app/chippu/id1513274320';
+  if (/android/i.test(ua))
+    return 'https://play.google.com/store/apps/details?id=br.com.chippu.app&hl=pt_BR';
+  // Desktop: abre Apple Store como padrão (pode trocar para uma landing page)
+  return 'https://apps.apple.com/br/app/chippu/id1513274320';
+}
+
 function handleDownload() {
   console.log('DOWNLOAD →', { nome:ST.name, diag_real:diag.real });
-  // produção: window.open('https://chippu.app/download','_blank');
-  go(7); // ainda captura email
+  go(7); // coleta email primeiro
 }
 
 // ── EMAIL ──────────────────────────────
@@ -1440,6 +1449,10 @@ function submitLead(skip=false) {
   enviarDiagnosticoComoImagem();
 
   console.log('LEAD →', payload);
+
+  // Redireciona para a store após coleta completa
+  setTimeout(() => window.open(getStoreUrl(), '_blank'), 800);
+
   go(9);
 }
 </script>
