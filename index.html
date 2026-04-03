@@ -1450,6 +1450,22 @@ function submitLead(skip=false) {
 
   console.log('LEAD →', payload);
 
+  // Webhook Meta Ads
+  const nomeParts = (ST.name || '').trim().split(' ');
+  const metaPayload = {
+    first_name: nomeParts[0] || '',
+    last_name:  nomeParts.slice(1).join(' ') || '',
+    email:      ST.email || '',
+    phone:      ST.phone || '',
+    fbclid:     utms.fbclid || '',
+  };
+
+  fetch('https://webhook.trafegoedu.com.br/webhook/recebe_dados_conversao_meta_ads', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(metaPayload)
+  }).catch(err => console.warn('Webhook Meta erro:', err));
+
   // Redireciona para a store após coleta completa
   setTimeout(() => window.open(getStoreUrl(), '_blank'), 800);
 
