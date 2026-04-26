@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chippu — Dashboard de Campanha</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=Inconsolata:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:       #080d10;
+  --bg2:      #0b1215;
+  --surface:  #0f1820;
+  --surface2: #132028;
+  --border:   #1e3040;
+  --border2:  #254050;
+  --teal:     #00c9b1;
+  --teal2:    #00e8cc;
+  --teal-dim: rgba(0,201,177,0.10);
+  --teal-mid: rgba(0,201,177,0.20);
+  --red:      #ff4a4a;
+  --red-dim:  rgba(255,74,74,0.10);
+  --gold:     #f5c842;
+  --gold-dim: rgba(245,200,66,0.10);
+  --text:     #b8cdd4;
+  --text2:    #567080;
+  --text3:    #2e4250;
+  --white:    #eef6f8;
+  --font-head: 'Barlow Condensed', sans-serif;
+  --font-body: 'Barlow', sans-serif;
+  --font-mono: 'Inconsolata', monospace;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { min-height:100%; background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:15px; }
+
+/* ── SETUP ── */
+.setup-wrap {
+  min-height:100vh; display:flex; align-items:center;
+  justify-content:center; padding:24px;
+}
+.setup-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; padding:36px; max-width:560px; width:100%;
+}
+.setup-title {
+  font-family:var(--font-head); font-size:30px; font-weight:800;
+  color:var(--teal); margin-bottom:8px; letter-spacing:0.02em;
+}
+.setup-sub { color:var(--text2); font-size:14px; margin-bottom:28px; line-height:1.6; }
+.setup-steps { display:flex; flex-direction:column; gap:10px; margin-bottom:28px; }
+.setup-step { display:flex; align-items:flex-start; gap:12px; }
+.step-num {
+  width:22px; height:22px; border-radius:50%; background:var(--teal-dim);
+  border:1px solid var(--teal); color:var(--teal); font-family:var(--font-mono);
+  font-size:11px; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; margin-top:1px;
+}
+.step-txt { font-size:13px; color:var(--text2); line-height:1.5; }
+.step-txt strong { color:var(--white); }
+.form-group { margin-bottom:18px; }
+.form-lbl {
+  display:block; font-family:var(--font-mono); font-size:10px;
+  text-transform:uppercase; letter-spacing:.12em; color:var(--text2); margin-bottom:7px;
+}
+.form-inp {
+  width:100%; background:var(--bg); border:1px solid var(--border);
+  border-radius:8px; padding:11px 14px; color:var(--white);
+  font-family:var(--font-mono); font-size:13px; transition:border-color .2s;
+}
+.form-inp:focus { outline:none; border-color:var(--teal); }
+.form-hint { font-size:12px; color:var(--text3); margin-top:5px; }
+.btn-load {
+  width:100%; background:var(--teal); color:#000; border:none;
+  border-radius:10px; padding:15px; font-family:var(--font-head);
+  font-size:16px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+  cursor:pointer; transition:background .2s; margin-top:4px;
+}
+.btn-load:hover { background:var(--teal2); }
+
+/* ── DASH HEADER ── */
+.dash-header {
+  background:var(--bg2); border-bottom:1px solid var(--border);
+  padding:14px 24px; display:flex; align-items:center;
+  gap:12px; flex-wrap:wrap; position:sticky; top:0; z-index:100;
+}
+.dash-logo { font-family:var(--font-head); font-size:20px; font-weight:800; color:var(--teal); letter-spacing:.05em; }
+.dash-sublabel { font-family:var(--font-mono); font-size:10px; color:var(--text2); text-transform:uppercase; letter-spacing:.1em; }
+.period-tabs { display:flex; gap:4px; margin-left:auto; }
+.period-tab {
+  padding:6px 12px; border-radius:6px; border:1px solid var(--border);
+  background:transparent; color:var(--text2); cursor:pointer;
+  font-family:var(--font-mono); font-size:11px; text-transform:uppercase;
+  letter-spacing:.08em; transition:all .15s;
+}
+.period-tab.active { background:var(--teal-dim); border-color:var(--teal); color:var(--teal); }
+.period-tab:hover:not(.active) { border-color:var(--border2); color:var(--text); }
+.date-inputs { display:flex; gap:8px; align-items:center; }
+.date-inp {
+  background:var(--bg); border:1px solid var(--border); border-radius:6px;
+  padding:6px 10px; color:var(--white); font-family:var(--font-mono);
+  font-size:11px; color-scheme:dark;
+}
+.date-inp:focus { outline:none; border-color:var(--teal); }
+.camp-select {
+  background:var(--bg); border:1px solid var(--border); border-radius:6px;
+  padding:7px 10px; color:var(--white); font-family:var(--font-mono);
+  font-size:11px; cursor:pointer; max-width:220px;
+}
+.camp-select:focus { outline:none; border-color:var(--teal); }
+.btn-cfg {
+  padding:6px 12px; border-radius:6px; border:1px solid var(--border);
+  background:transparent; color:var(--text2); cursor:pointer;
+  font-family:var(--font-mono); font-size:10px; text-transform:uppercase;
+  letter-spacing:.08em; transition:all .15s;
+}
+.btn-cfg:hover { border-color:var(--teal); color:var(--teal); }
+.btn-refresh {
+  padding:6px 12px; border-radius:6px; border:1px solid var(--teal-mid);
+  background:var(--teal-dim); color:var(--teal); cursor:pointer;
+  font-family:var(--font-mono); font-size:10px; text-transform:uppercase;
+  letter-spacing:.08em; transition:all .15s;
+}
+.btn-refresh:hover { background:var(--teal-mid); }
+
+/* ── DASH BODY ── */
+.dash-body { padding:24px; max-width:1400px; margin:0 auto; }
+
+/* KPI Grid */
+.kpi-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap:12px; margin-bottom:20px;
+}
+.kpi-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; padding:18px 20px;
+}
+.kpi-card.kpi-red  { border-color:rgba(255,74,74,0.35);  background:var(--red-dim); }
+.kpi-card.kpi-teal { border-color:rgba(0,201,177,0.35);  background:var(--teal-dim); }
+.kpi-card.kpi-gold { border-color:rgba(245,200,66,0.35); background:var(--gold-dim); }
+.kpi-lbl { font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--text2); margin-bottom:8px; }
+.kpi-val { font-family:var(--font-head); font-size:30px; font-weight:800; line-height:1; margin-bottom:4px; color:var(--white); }
+.kpi-val.c-teal { color:var(--teal); }
+.kpi-val.c-red  { color:var(--red); }
+.kpi-val.c-gold { color:var(--gold); }
+.kpi-sub { font-size:12px; color:var(--text2); }
+
+/* Charts */
+.charts-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+@media(max-width:900px) { .charts-row { grid-template-columns:1fr; } }
+.chart-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; }
+.chart-title { font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--text2); margin-bottom:16px; }
+.chart-canvas-wrap { position:relative; height:200px; }
+
+/* Table */
+.table-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:24px; }
+.table-header { padding:16px 20px; border-bottom:1px solid var(--border); font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--text2); }
+.table-wrap { overflow-x:auto; }
+.data-table { width:100%; border-collapse:collapse; }
+.data-table th {
+  padding:10px 16px; text-align:left; border-bottom:1px solid var(--border);
+  font-family:var(--font-mono); font-size:10px; text-transform:uppercase;
+  letter-spacing:.1em; color:var(--text3); font-weight:400; white-space:nowrap;
+}
+.data-table td { padding:12px 16px; border-bottom:1px solid var(--border); font-size:13px; }
+.data-table tr:last-child td { border-bottom:none; }
+.data-table tr:hover td { background:var(--surface2); }
+.tn { font-family:var(--font-mono); color:var(--white); }
+.tt { font-family:var(--font-mono); color:var(--teal); }
+.tr { font-family:var(--font-mono); color:var(--red); }
+.tg { font-family:var(--font-mono); color:var(--gold); }
+.td-name { max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.td-na { color:var(--text3); font-family:var(--font-mono); }
+
+/* States */
+.loading-state { display:flex; align-items:center; justify-content:center; min-height:50vh; flex-direction:column; gap:14px; }
+.spin { width:32px; height:32px; border:2px solid var(--border); border-top-color:var(--teal); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.load-label { font-family:var(--font-mono); font-size:11px; color:var(--text2); text-transform:uppercase; letter-spacing:.1em; }
+.error-banner { background:var(--red-dim); border:1px solid rgba(255,74,74,.35); border-radius:10px; padding:14px 18px; margin-bottom:16px; font-size:13px; color:var(--red); line-height:1.5; }
+.info-banner { background:var(--teal-dim); border:1px solid rgba(0,201,177,.25); border-radius:10px; padding:12px 18px; margin-bottom:16px; font-size:12px; color:var(--teal); }
+
+@media(max-width:640px) {
+  .dash-header { padding:12px 16px; }
+  .dash-body { padding:16px; }
+  .kpi-grid { grid-template-columns:1fr 1fr; }
+  .period-tabs { gap:2px; }
+  .period-tab { padding:5px 8px; font-size:10px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ SETUP ═══ -->
+<div id="setup-view" class="setup-wrap">
+  <div class="setup-card">
+    <div class="setup-title">Configurar Planilha</div>
+    <div class="setup-sub">Para conectar o dashboard à sua planilha do Google Sheets, siga os passos abaixo:</div>
+
+    <div class="setup-steps">
+      <div class="setup-step">
+        <div class="step-num">1</div>
+        <div class="step-txt">Abra a planilha e vá em <strong>Arquivo → Compartilhar → Publicar na web</strong></div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">2</div>
+        <div class="step-txt">Escolha <strong>Documento inteiro</strong> e formato <strong>CSV</strong>, clique em <strong>Publicar</strong></div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">3</div>
+        <div class="step-txt">Cole a <strong>URL da planilha</strong> abaixo (está na barra do navegador)</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-lbl">URL da Planilha</label>
+      <input class="form-inp" id="cfg-url" type="text" placeholder="https://docs.google.com/spreadsheets/d/ID_AQUI/edit">
+      <div class="form-hint">Cole a URL completa da planilha</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-lbl">GID da aba "Extração Gerenciador" (Meta Ads)</label>
+      <input class="form-inp" id="cfg-gid-ads" type="text" placeholder="907185909">
+      <div class="form-hint">Dados exportados do gerenciador de anúncios (spend, impressões, cliques…)</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-lbl">GID da aba "Conversoes"</label>
+      <input class="form-inp" id="cfg-gid-conv" type="text" placeholder="1961049271">
+      <div class="form-hint">Leads captados pelo funil — usados para calcular CPL</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-lbl">GID da aba "Track Etapas"</label>
+      <input class="form-inp" id="cfg-gid-track" type="text" placeholder="0">
+      <div class="form-hint">Tracking de telas do funil — para contar finalizações do quizz</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-lbl">GID da aba "Downloads"</label>
+      <input class="form-inp" id="cfg-gid-dl" type="text" placeholder="">
+      <div class="form-hint">Downloads do app (deixe em branco se não tiver aba separada)</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-lbl">Nome da coluna de campanha na aba Conversoes</label>
+      <input class="form-inp" id="cfg-col-camp" type="text" placeholder="utm_campaign">
+      <div class="form-hint">Cabeçalho exato da coluna que identifica a campanha nos leads (ex: utm_campaign, campaign_name)</div>
+    </div>
+
+    <button class="btn-load" onclick="saveConfig()">CARREGAR DASHBOARD →</button>
+  </div>
+</div>
+
+<!-- ═══ DASHBOARD ═══ -->
+<div id="dash-view" style="display:none">
+
+  <div class="dash-header">
+    <div>
+      <div class="dash-logo">CHIPPU</div>
+      <div class="dash-sublabel">Dashboard de Campanha</div>
+    </div>
+
+    <div class="period-tabs">
+      <button class="period-tab" data-d="7"  onclick="setPeriod(7)">7D</button>
+      <button class="period-tab" data-d="15" onclick="setPeriod(15)">15D</button>
+      <button class="period-tab active" data-d="30" onclick="setPeriod(30)">30D</button>
+      <button class="period-tab" data-d="0"  onclick="setPeriod(0)">Custom</button>
+    </div>
+
+    <div class="date-inputs" id="date-inputs" style="display:none">
+      <input class="date-inp" type="date" id="date-from" onchange="applyCustom()">
+      <span style="color:var(--text3)">→</span>
+      <input class="date-inp" type="date" id="date-to" onchange="applyCustom()">
+    </div>
+
+    <select class="camp-select" id="camp-select" onchange="render()">
+      <option value="">Todas as campanhas</option>
+    </select>
+
+    <button class="btn-refresh" onclick="loadData()">↻ Atualizar</button>
+    <button class="btn-cfg" onclick="showSetup()">⚙ Config</button>
+  </div>
+
+  <div class="dash-body">
+    <div id="error-area"></div>
+    <div id="info-area"></div>
+
+    <div id="loading-area" class="loading-state" style="display:none">
+      <div class="spin"></div>
+      <div class="load-label">Carregando dados da planilha…</div>
+    </div>
+
+    <div id="dash-content" style="display:none">
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-red">
+          <div class="kpi-lbl">Verba Gasta</div>
+          <div class="kpi-val c-red" id="kv-spend">—</div>
+          <div class="kpi-sub">no período selecionado</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-lbl">Impressões</div>
+          <div class="kpi-val" id="kv-imp">—</div>
+          <div class="kpi-sub" id="ks-cpm">CPM —</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-lbl">Cliques no Link</div>
+          <div class="kpi-val" id="kv-clicks">—</div>
+          <div class="kpi-sub" id="ks-ctr">CTR —%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-lbl">Views Landing Page</div>
+          <div class="kpi-val" id="kv-lpv">—</div>
+          <div class="kpi-sub" id="ks-cpc">CPC —</div>
+        </div>
+        <div class="kpi-card kpi-teal">
+          <div class="kpi-lbl">Leads Captados</div>
+          <div class="kpi-val c-teal" id="kv-leads">—</div>
+          <div class="kpi-sub">via funil no período</div>
+        </div>
+        <div class="kpi-card kpi-gold">
+          <div class="kpi-lbl">Custo por Lead (CPL)</div>
+          <div class="kpi-val c-gold" id="kv-cpl">—</div>
+          <div class="kpi-sub">verba ÷ leads</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-lbl">Downloads do App</div>
+          <div class="kpi-val" id="kv-dl">—</div>
+          <div class="kpi-sub" id="ks-dl">no período</div>
+        </div>
+        <div class="kpi-card kpi-teal">
+          <div class="kpi-lbl">Taxa Quizz → Download</div>
+          <div class="kpi-val c-teal" id="kv-conv">—</div>
+          <div class="kpi-sub" id="ks-conv">downloads ÷ leads</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">Verba Diária (R$)</div>
+          <div class="chart-canvas-wrap"><canvas id="chart-spend"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Leads por Dia</div>
+          <div class="chart-canvas-wrap"><canvas id="chart-leads"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Campaign Table -->
+      <div class="table-card">
+        <div class="table-header">Desempenho por Campanha</div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Campanha</th>
+                <th>Verba (R$)</th>
+                <th>Impressões</th>
+                <th>Cliques</th>
+                <th>CTR</th>
+                <th>Landing Page</th>
+                <th>CPM</th>
+                <th>CPC</th>
+                <th>Leads</th>
+                <th>CPL (R$)</th>
+                <th>Downloads</th>
+                <th>Conv%</th>
+              </tr>
+            </thead>
+            <tbody id="camp-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /dash-content -->
+  </div><!-- /dash-body -->
+</div><!-- /dash-view -->
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────────────
+const CFG_KEY = 'chippu_dash_v2';
+let CFG = {};
+let RAW = { ads:[], conv:[], track:[], dl:[] };
+let filterFrom = null, filterTo = null;
+let cSpend = null, cLeads = null;
+
+function loadConfig() {
+  try { CFG = JSON.parse(localStorage.getItem(CFG_KEY) || '{}'); } catch { CFG = {}; }
+}
+
+function saveConfig() {
+  const raw = document.getElementById('cfg-url').value.trim();
+  const m = raw.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  const id = m ? m[1] : raw.replace(/\s/g,'');
+  if (!id) { alert('Cole a URL da planilha'); return; }
+  CFG = {
+    id,
+    gidAds:   document.getElementById('cfg-gid-ads').value.trim(),
+    gidConv:  document.getElementById('cfg-gid-conv').value.trim(),
+    gidTrack: document.getElementById('cfg-gid-track').value.trim(),
+    gidDl:    document.getElementById('cfg-gid-dl').value.trim(),
+    colCamp:  document.getElementById('cfg-col-camp').value.trim() || 'utm_campaign',
+  };
+  localStorage.setItem(CFG_KEY, JSON.stringify(CFG));
+  showDash();
+}
+
+function showSetup() {
+  loadConfig();
+  const url = CFG.id ? `https://docs.google.com/spreadsheets/d/${CFG.id}/edit` : '';
+  document.getElementById('cfg-url').value      = url;
+  document.getElementById('cfg-gid-ads').value  = CFG.gidAds   || '';
+  document.getElementById('cfg-gid-conv').value = CFG.gidConv  || '';
+  document.getElementById('cfg-gid-track').value= CFG.gidTrack || '';
+  document.getElementById('cfg-gid-dl').value   = CFG.gidDl    || '';
+  document.getElementById('cfg-col-camp').value = CFG.colCamp  || 'utm_campaign';
+  document.getElementById('setup-view').style.display = 'flex';
+  document.getElementById('dash-view').style.display  = 'none';
+}
+
+function showDash() {
+  document.getElementById('setup-view').style.display = 'none';
+  document.getElementById('dash-view').style.display  = 'block';
+  setPeriod(30);
+}
+
+// ── CSV ───────────────────────────────────────────────────────────────────
+function parseCSV(txt) {
+  const rows = [];
+  let row = [], cell = '', inQ = false;
+  for (let i = 0; i < txt.length; i++) {
+    const c = txt[i];
+    if (c === '"') {
+      if (inQ && txt[i+1] === '"') { cell += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      row.push(cell.trim()); cell = '';
+    } else if ((c === '\n' || c === '\r') && !inQ) {
+      if (c === '\r' && txt[i+1] === '\n') i++;
+      row.push(cell.trim()); cell = '';
+      if (row.some(v => v)) rows.push(row);
+      row = [];
+    } else cell += c;
+  }
+  if (cell || row.length) { row.push(cell.trim()); if (row.some(v => v)) rows.push(row); }
+  return rows;
+}
+
+function csvToObjs(txt) {
+  const rows = parseCSV(txt);
+  if (rows.length < 2) return [];
+  const hdrs = rows[0];
+  return rows.slice(1).map(r => {
+    const o = {};
+    hdrs.forEach((h, i) => o[h.trim()] = (r[i] || '').trim());
+    return o;
+  });
+}
+
+async function fetchGid(gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${CFG.id}/export?format=csv&gid=${gid}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Erro HTTP ${res.status} (gid ${gid})`);
+  return csvToObjs(await res.text());
+}
+
+// ── DATES ─────────────────────────────────────────────────────────────────
+function parseDate(s) {
+  if (!s) return null;
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return new Date(+m[3], +m[1]-1, +m[2]);
+  return null;
+}
+
+function dateKey(d) {
+  if (!d) return '';
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function daysAgo(n) {
+  const d = new Date(); d.setDate(d.getDate() - n); return d;
+}
+
+function inPeriod(d) {
+  if (!d) return true;
+  if (filterFrom && d < filterFrom) return false;
+  if (filterTo   && d > filterTo)   return false;
+  return true;
+}
+
+// ── NUMBERS ───────────────────────────────────────────────────────────────
+function pn(v) { return parseFloat(String(v||0).replace(/[^\d.]/g,'')) || 0; }
+function brl(n) { return 'R$ ' + n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmt(n) {
+  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+  return n.toLocaleString('pt-BR');
+}
+function pct(n) { return n.toFixed(1)+'%'; }
+
+// ── LOAD ──────────────────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('loading-area').style.display = 'flex';
+  document.getElementById('dash-content').style.display = 'none';
+  document.getElementById('error-area').innerHTML = '';
+  document.getElementById('info-area').innerHTML  = '';
+
+  RAW = { ads:[], conv:[], track:[], dl:[] };
+
+  try {
+    const jobs = [];
+    if (CFG.gidAds)   jobs.push(fetchGid(CFG.gidAds).then(d => { RAW.ads   = d; }));
+    if (CFG.gidConv)  jobs.push(fetchGid(CFG.gidConv).then(d => { RAW.conv  = d; }));
+    if (CFG.gidTrack) jobs.push(fetchGid(CFG.gidTrack).then(d => { RAW.track = d; }));
+    if (CFG.gidDl)    jobs.push(fetchGid(CFG.gidDl).then(d => { RAW.dl    = d; }));
+    await Promise.all(jobs);
+    buildCampaignFilter();
+    render();
+  } catch(e) {
+    document.getElementById('error-area').innerHTML =
+      `<div class="error-banner">
+        <strong>Erro ao carregar dados:</strong> ${e.message}<br>
+        Verifique se a planilha está publicada em <em>Arquivo → Compartilhar → Publicar na web</em> e se os GIDs estão corretos.
+      </div>`;
+    document.getElementById('dash-content').style.display = 'block';
+  } finally {
+    document.getElementById('loading-area').style.display = 'none';
+  }
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────
+function setPeriod(days) {
+  document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`[data-d="${days}"]`)?.classList.add('active');
+
+  const di = document.getElementById('date-inputs');
+  if (days === 0) { di.style.display = 'flex'; return; }
+  di.style.display = 'none';
+
+  filterTo   = new Date(); filterTo.setHours(23,59,59,999);
+  filterFrom = daysAgo(days); filterFrom.setHours(0,0,0,0);
+  document.getElementById('date-from').value = dateKey(filterFrom);
+  document.getElementById('date-to').value   = dateKey(filterTo);
+
+  if (RAW.ads.length || RAW.conv.length) render(); else loadData();
+}
+
+function applyCustom() {
+  const f = document.getElementById('date-from').value;
+  const t = document.getElementById('date-to').value;
+  if (!f || !t) return;
+  filterFrom = new Date(f + 'T00:00:00');
+  filterTo   = new Date(t + 'T23:59:59');
+  if (RAW.ads.length || RAW.conv.length) render(); else loadData();
+}
+
+function buildCampaignFilter() {
+  const names = [...new Set(RAW.ads.map(r => r['Campaign Name']).filter(Boolean))].sort();
+  const sel = document.getElementById('camp-select');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Todas as campanhas</option>';
+  names.forEach(n => {
+    const o = document.createElement('option');
+    o.value = n; o.textContent = n.length > 45 ? n.slice(0,43)+'…' : n;
+    sel.appendChild(o);
+  });
+  if (cur) sel.value = cur;
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function render() {
+  const campFilter = document.getElementById('camp-select').value;
+  const colCamp    = CFG.colCamp || 'utm_campaign';
+
+  // Detect date column in conversoes (first col with date/timestamp/data in name)
+  const convSample = RAW.conv[0] || {};
+  const convDateCol = Object.keys(convSample).find(k =>
+    /date|timestamp|data|criado|created/i.test(k)
+  ) || '';
+
+  // ── Filter rows ──
+  const adsRows = RAW.ads.filter(r => {
+    if (!inPeriod(parseDate(r['Date']))) return false;
+    if (campFilter && r['Campaign Name'] !== campFilter) return false;
+    return true;
+  });
+
+  const convRows = RAW.conv.filter(r => {
+    if (campFilter) {
+      const rc = r[colCamp] || '';
+      const match = rc === campFilter ||
+        rc.toLowerCase().includes(campFilter.toLowerCase()) ||
+        campFilter.toLowerCase().includes(rc.toLowerCase());
+      if (!match) return false;
+    }
+    const d = convDateCol ? parseDate(r[convDateCol]) : null;
+    return inPeriod(d);
+  });
+
+  const dlDateCol = Object.keys(RAW.dl[0] || {}).find(k => /date|data/i.test(k)) || '';
+  const dlCountCol = Object.keys(RAW.dl[0] || {}).find(k => /download|install|count|qtd/i.test(k)) || '';
+  const dlRows = RAW.dl.filter(r => inPeriod(dlDateCol ? parseDate(r[dlDateCol]) : null));
+
+  // ── Aggregate ads ──
+  let spend=0, imp=0, clicks=0, lpv=0;
+  adsRows.forEach(r => {
+    spend  += pn(r['Spend (Cost, Amount Spent)'] || r['Spend'] || r['Amount Spent'] || r['spend']);
+    imp    += pn(r['Impressions']                || r['impressions']);
+    clicks += pn(r['Action Link Clicks']         || r['Link Clicks']       || r['link_clicks']);
+    lpv    += pn(r['Action Landing Page View']   || r['Landing Page Views']|| r['landing_page_views']);
+  });
+
+  const ctr = imp    > 0 ? clicks / imp * 100  : 0;
+  const cpm = imp    > 0 ? spend  / imp * 1000 : 0;
+  const cpc = clicks > 0 ? spend  / clicks     : 0;
+
+  // ── Leads ──
+  const leads = convRows.length;
+  const cpl   = leads > 0 ? spend / leads : 0;
+
+  // ── Downloads ──
+  let downloads = 0;
+  if (RAW.dl.length > 0) {
+    dlRows.forEach(r => downloads += dlCountCol ? pn(r[dlCountCol]) : 1);
+  }
+
+  // ── Conversion ──
+  const convRate = leads > 0 && downloads > 0 ? downloads / leads * 100 : 0;
+
+  // ── KPI cards ──
+  document.getElementById('kv-spend').textContent  = brl(spend);
+  document.getElementById('kv-imp').textContent    = fmt(imp);
+  document.getElementById('ks-cpm').textContent    = imp > 0 ? `CPM ${brl(cpm)}` : 'CPM —';
+  document.getElementById('kv-clicks').textContent = fmt(clicks);
+  document.getElementById('ks-ctr').textContent    = imp > 0 ? `CTR ${pct(ctr)}` : 'CTR —';
+  document.getElementById('kv-lpv').textContent    = fmt(lpv);
+  document.getElementById('ks-cpc').textContent    = clicks > 0 ? `CPC ${brl(cpc)}` : 'CPC —';
+  document.getElementById('kv-leads').textContent  = fmt(leads);
+  document.getElementById('kv-cpl').textContent    = leads > 0 ? brl(cpl) : '—';
+
+  if (RAW.dl.length > 0) {
+    document.getElementById('kv-dl').textContent   = fmt(downloads);
+    document.getElementById('ks-dl').textContent   = 'no período';
+    document.getElementById('kv-conv').textContent = convRate > 0 ? pct(convRate) : '—';
+    document.getElementById('ks-conv').textContent = `${fmt(downloads)} dl ÷ ${fmt(leads)} leads`;
+  } else {
+    document.getElementById('kv-dl').textContent   = '—';
+    document.getElementById('ks-dl').textContent   = 'configure aba Downloads';
+    document.getElementById('kv-conv').textContent = '—';
+    document.getElementById('ks-conv').textContent = 'requer aba Downloads';
+  }
+
+  // ── Info about matching ──
+  if (!convDateCol && RAW.conv.length > 0) {
+    document.getElementById('info-area').innerHTML =
+      `<div class="info-banner">Coluna de data não encontrada na aba Conversoes — todos os leads estão sendo contados sem filtro de período.</div>`;
+  }
+
+  // ── Daily data for charts ──
+  const byDay = {};
+  const dayLeads = {};
+
+  adsRows.forEach(r => {
+    const k = dateKey(parseDate(r['Date']));
+    if (!k) return;
+    byDay[k] = (byDay[k]||0) + pn(r['Spend (Cost, Amount Spent)']||r['Spend']||r['Amount Spent']||r['spend']);
+  });
+
+  convRows.forEach(r => {
+    const d = convDateCol ? parseDate(r[convDateCol]) : null;
+    if (!d) return;
+    const k = dateKey(d);
+    dayLeads[k] = (dayLeads[k]||0) + 1;
+  });
+
+  // Build complete date range
+  const dates = [];
+  if (filterFrom && filterTo) {
+    let cur = new Date(filterFrom);
+    while (cur <= filterTo) { dates.push(dateKey(cur)); cur.setDate(cur.getDate()+1); }
+  } else {
+    const all = [...new Set([...Object.keys(byDay),...Object.keys(dayLeads)])].sort();
+    dates.push(...all);
+  }
+
+  const labels     = dates.map(k => k.slice(5));
+  const spendVals  = dates.map(k => byDay[k]    || 0);
+  const leadVals   = dates.map(k => dayLeads[k] || 0);
+
+  renderChart('chart-spend', labels, spendVals, 'Verba R$', '#ff4a4a', v => cSpend = v, cSpend);
+  renderChart('chart-leads', labels, leadVals,  'Leads',    '#00c9b1', v => cLeads = v, cLeads);
+
+  // ── Campaign table ──
+  const map = {};
+  adsRows.forEach(r => {
+    const n = r['Campaign Name'] || '(sem nome)';
+    if (!map[n]) map[n] = { spend:0, imp:0, clicks:0, lpv:0, leads:0, dl:0 };
+    map[n].spend  += pn(r['Spend (Cost, Amount Spent)']||r['Spend']||r['Amount Spent']||r['spend']);
+    map[n].imp    += pn(r['Impressions']||r['impressions']);
+    map[n].clicks += pn(r['Action Link Clicks']||r['Link Clicks']||r['link_clicks']);
+    map[n].lpv    += pn(r['Action Landing Page View']||r['Landing Page Views']);
+  });
+
+  convRows.forEach(r => {
+    const rc = (r[colCamp] || '').trim();
+    if (!rc) return;
+    // exact match
+    if (map[rc]) { map[rc].leads++; return; }
+    // partial
+    const key = Object.keys(map).find(k =>
+      k.toLowerCase().includes(rc.toLowerCase()) || rc.toLowerCase().includes(k.toLowerCase())
+    );
+    if (key) map[key].leads++;
+  });
+
+  // Downloads per campaign
+  if (RAW.dl.length > 0) {
+    const dlCampCol = Object.keys(RAW.dl[0]||{}).find(k => /campaign|campanha/i.test(k));
+    if (dlCampCol) {
+      dlRows.forEach(r => {
+        const cn = r[dlCampCol];
+        if (cn && map[cn]) map[cn].dl += dlCountCol ? pn(r[dlCountCol]) : 1;
+      });
+    } else if (spend > 0) {
+      Object.values(map).forEach(v => {
+        v.dl = Math.round((v.spend / spend) * downloads);
+      });
+    }
+  }
+
+  const tbody = document.getElementById('camp-tbody');
+  tbody.innerHTML = '';
+  const sorted = Object.entries(map).sort((a,b) => b[1].spend - a[1].spend);
+
+  sorted.forEach(([name, v]) => {
+    const ctr_c  = v.imp    > 0 ? v.clicks / v.imp * 100 : 0;
+    const cpm_c  = v.imp    > 0 ? v.spend  / v.imp * 1000: 0;
+    const cpc_c  = v.clicks > 0 ? v.spend  / v.clicks    : 0;
+    const cpl_c  = v.leads  > 0 ? v.spend  / v.leads     : 0;
+    const conv_c = v.leads  > 0 && v.dl > 0 ? v.dl / v.leads * 100 : 0;
+
+    tbody.innerHTML += `<tr>
+      <td class="td-name" title="${name}">${name}</td>
+      <td class="tr">${brl(v.spend)}</td>
+      <td class="tn">${fmt(v.imp)}</td>
+      <td class="tn">${fmt(v.clicks)}</td>
+      <td class="tn">${v.imp > 0 ? pct(ctr_c) : '<span class="td-na">—</span>'}</td>
+      <td class="tn">${fmt(v.lpv)}</td>
+      <td class="tn">${v.imp > 0 ? brl(cpm_c) : '<span class="td-na">—</span>'}</td>
+      <td class="tn">${v.clicks > 0 ? brl(cpc_c) : '<span class="td-na">—</span>'}</td>
+      <td class="tt">${v.leads > 0 ? fmt(v.leads) : '<span class="td-na">—</span>'}</td>
+      <td class="tg">${v.leads > 0 ? brl(cpl_c) : '<span class="td-na">—</span>'}</td>
+      <td class="tn">${RAW.dl.length > 0 ? fmt(v.dl) : '<span class="td-na">—</span>'}</td>
+      <td class="tt">${conv_c > 0 ? pct(conv_c) : '<span class="td-na">—</span>'}</td>
+    </tr>`;
+  });
+
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:28px;font-family:var(--font-mono);font-size:12px">Nenhum dado para o período / campanha selecionados</td></tr>';
+  }
+
+  document.getElementById('dash-content').style.display = 'block';
+}
+
+// ── CHART ─────────────────────────────────────────────────────────────────
+function renderChart(id, labels, data, label, color, setter, existing) {
+  if (existing) existing.destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  setter(new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label, data,
+        backgroundColor: color + '35',
+        borderColor: color,
+        borderWidth: 1.5,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          backgroundColor: '#0f1820',
+          borderColor: '#1e3040',
+          borderWidth: 1,
+          titleColor: '#b8cdd4',
+          bodyColor: '#eef6f8',
+        }
+      },
+      scales: {
+        x: { grid:{ color:'#1e3040' }, ticks:{ color:'#567080', font:{family:'Inconsolata',size:10} } },
+        y: { grid:{ color:'#1e3040' }, ticks:{ color:'#567080', font:{family:'Inconsolata',size:10} }, beginAtZero:true }
+      }
+    }
+  }));
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+loadConfig();
+if (CFG.id) showDash(); else showSetup();
+</script>
+</body>
+</html>
